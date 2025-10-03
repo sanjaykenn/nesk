@@ -1,0 +1,14 @@
+[package]
+name = "nesk"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sanjay Kenn sanjaykenn@gmail.com"]
+license = "MIT OR Apache-2.0"
+description = "NES emulator"
+repository = "https://github.com/sanjaykenn/nesk"
+keywords = ["nes", "emulator", "nintendo", "retro"]
+categories = ["emulators", "games"]
+
+[lib]
+name = "nesk"
+path = "src/lib.rs"
