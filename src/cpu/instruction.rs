@@ -1,18 +1,23 @@
+use crate::cpu::instruction::AddressingMode::*;
+use crate::cpu::instruction::IndexMode::*;
+
+#[derive(Clone, Copy)]
+pub enum IndexMode {
+    X,
+    Y
+}
+
+#[derive(Clone, Copy)]
 pub enum AddressingMode {
     Implied,
     Immediate,
-    ZeroPage,
-    ZeroPageX,
-    ZeroPageY,
-    Absolute,
-    AbsoluteX,
-    AbsoluteY,
-    IndirectX,
-    IndirectY,
+    ZeroPage(Option<IndexMode>),
+    Absolute(Option<IndexMode>),
+    Indirect(IndexMode),
+    Branch
 }
 
 pub enum ALUOperation {
-    // TODO
 }
 
 pub fn is_read(opcode: u8) -> bool {
@@ -23,31 +28,25 @@ pub fn is_write(opcode: u8) -> bool {
     opcode & 0b11 == 0b11 || opcode & 0b110 == 0b110 || opcode & 0b11100000 == 0b10000000
 }
 
-pub fn is_branch(opcode: u8) -> bool {
-    opcode & 0b1111 == 0b0000
-}
-
-pub fn is_jmp(opcode: u8) -> bool {
-    opcode == 0x4C || opcode == 0x6C
-}
+const ADDRESS_TABLE: [AddressingMode; 0x20] = [
+    Implied, Indirect(X), Immediate, Indirect(X),
+    ZeroPage(None), ZeroPage(None), ZeroPage(None), ZeroPage(None),
+    Implied, Immediate, Implied, Immediate,
+    Absolute(None), Absolute(None), Absolute(None), Absolute(None), 
+    Branch, Indirect(Y), Immediate, Indirect(Y),
+    ZeroPage(Some(X)), ZeroPage(Some(X)), ZeroPage(Some(X)), ZeroPage(Some(X)),
+    Implied, Absolute(Some(Y)), Implied, Absolute(Some(Y)),
+    Absolute(Some(X)), Absolute(Some(X)), Absolute(Some(X)), Absolute(Some(X)),
+];
 
 pub fn get_addressing_mode(opcode: u8) -> AddressingMode {
-    match opcode & 0b00011101 {
-        0b00000000 => if opcode & 0b10011111 != 0b10000010 { AddressingMode::Implied } else { AddressingMode::Immediate },
-        0b00000001 => AddressingMode::IndirectX,
-        0b00000100 => AddressingMode::ZeroPage,
-        0b00000101 => AddressingMode::ZeroPage,
-        0b00001001 => AddressingMode::Immediate,
-        0b00001100 => AddressingMode::Absolute,
-        0b00001101 => AddressingMode::Absolute,
-        0b00010001 => AddressingMode::IndirectY,
-        0b00010100 | 0b00010101 => if opcode & 0b11010010 != 0b10010010 { AddressingMode::ZeroPageX } else { AddressingMode::ZeroPageY },
-        0b00011001 => AddressingMode::AbsoluteY,
-        0b00011100 | 0b00011101 => if opcode & 0b11010010 != 0b10010010 { AddressingMode::AbsoluteX } else { AddressingMode::AbsoluteY },
-        _ => AddressingMode::Implied
+    match opcode {
+        0x96 | 0x97 | 0xB6 | 0xB7 => ZeroPage(Some(Y)),
+        0x9E | 0x9F | 0xBE | 0xBF => Absolute(Some(Y)),
+        _ => ADDRESS_TABLE[(opcode & 0x1F) as usize]
     }
 }
 
 pub fn get_alu_operation(opcode: u8) -> Option<ALUOperation> {
-    None // TODO
+    todo!()
 }
