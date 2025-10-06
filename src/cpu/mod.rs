@@ -1,4 +1,4 @@
-mod cpu;
+mod internal;
 mod instruction;
 
 pub struct CPU {
