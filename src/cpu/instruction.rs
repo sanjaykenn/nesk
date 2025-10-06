@@ -1,3 +1,4 @@
+use crate::cpu::alu::ALUOperation;
 use crate::cpu::instruction::AddressingMode::*;
 use crate::cpu::instruction::IndexMode::*;
 
@@ -15,9 +16,6 @@ pub enum AddressingMode {
     Absolute(Option<IndexMode>),
     Indirect(IndexMode),
     Branch
-}
-
-pub enum ALUOperation {
 }
 
 const ADDRESS_TABLE: [AddressingMode; 0x20] = [

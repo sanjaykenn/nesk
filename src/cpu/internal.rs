@@ -1,11 +1,13 @@
-use crate::cpu::instruction::{ALUOperation, AddressingMode, IndexMode, Instruction};
+use crate::cpu::alu::ALU;
+use crate::cpu::instruction::{AddressingMode, IndexMode, Instruction};
+use crate::cpu::status::StatusRegister;
 
 struct Registers {
     ir: Instruction,
     a: u8,
     x: u8,
     y: u8,
-    sr: u8,
+    sr: StatusRegister,
     sp: u8,
     pc: u16,
 }
@@ -17,7 +19,7 @@ impl Registers {
             a: 0,
             x: 0,
             y: 0,
-            sr: 0,
+            sr: StatusRegister::new(),
             sp: 0,
             pc: 0,
         }
@@ -49,13 +51,6 @@ enum CPUState {
     ReadIndirect(i32),
     Read(bool),
     Write,
-}
-
-struct ALU {
-    a: u8,
-    b: u8,
-    c_in: u8,
-    c_out: u8,
 }
 
 struct CPUInternal {
@@ -211,8 +206,8 @@ impl CPUInternal {
                 } else if reread {
                     CPUState::Read(false)
                 } else if self.registers.ir.is_write() {
-                    self.alu.a = todo!();
-                    self.alu.b = buffer;
+                    //self.alu.a = todo!();
+                    //self.alu.b = buffer;
                     CPUState::Write
                 } else {
                     self.load_alu(todo!(), buffer)
@@ -233,11 +228,7 @@ impl CPUInternal {
     fn load_alu(&mut self, a: u8, buffer: u8) -> CPUState {
         match self.registers.ir.get_alu_operation() {
             None => self.latch = buffer,
-            Some(_) => {
-                self.alu.a = a;
-                self.alu.b = buffer;
-                todo!(/*load alu operation*/)
-            }
+            Some(operation) => self.alu.set(a, buffer, operation),
         }
 
         CPUState::FetchInstruction

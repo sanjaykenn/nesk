@@ -1,6 +1,6 @@
-mod internal;
+mod alu;
 mod instruction;
+mod internal;
+mod status;
 
-pub struct CPU {
-
-}
+pub struct CPU {}
