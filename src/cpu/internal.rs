@@ -40,6 +40,14 @@ impl Registers {
     pub fn set_pch(&mut self, pch: u8) {
         self.pc = (self.pc & 0xFF) | (pch as u16) << 8;
     }
+
+    pub fn set_pc(&mut self, pcl: u8, pch: u8) {
+        self.pc = pcl as u16 | (pch as u16) << 8;
+    }
+
+    pub fn increment_pc(&mut self) {
+        self.pc = self.pc.wrapping_add(1);
+    }
 }
 
 enum CPUState {
@@ -49,7 +57,9 @@ enum CPUState {
     JumpIndirect(i32),
     FetchOperandHigh,
     ReadIndirect(i32),
-    Read(bool),
+    DummyRead,
+    Read,
+    DummyWrite,
     Write,
 }
 
@@ -63,14 +73,13 @@ struct CPUInternal {
     fix_pch: bool,
     branch: bool,
     output: Option<TargetRegister>,
+    result: u8,
 }
 
 impl CPUInternal {
     pub fn tick(&mut self) {
         let buffer = match self.state {
-            CPUState::FetchInstruction | CPUState::FetchOperand | CPUState::FetchOperandHigh => {
-                self.read(self.registers.pc)
-            }
+            CPUState::FetchInstruction | CPUState::FetchOperand | CPUState::FetchOperandHigh => self.read(self.registers.pc),
             CPUState::JumpIndirect(cycle) => match cycle {
                 0 => self.read(self.get_pc()),
                 _ => self.read(self.registers.pc),
@@ -88,7 +97,7 @@ impl CPUInternal {
         }
 
         if let Some(value) = self.alu.get_result(&mut self.registers.sr) {
-            self.latch = value
+            self.result = value
         }
 
         self.state = self.next(buffer);
@@ -106,23 +115,17 @@ impl CPUInternal {
                     (pcl, self.fix_pch) = self.registers.get_pcl().overflowing_add(self.latch);
                     self.registers.set_pcl(pcl);
                     CPUState::FetchInstruction
-                } else if self.fix_pch {
-                    self.registers
-                        .set_pch(self.registers.get_pch().wrapping_add(1));
-                    self.fix_pch = false;
+                } else if self.fix_pch() {
                     CPUState::FetchInstruction
                 } else {
-                    self.registers.pc = self.registers.pc.wrapping_add(1);
+                    self.registers.increment_pc();
                     self.registers.ir = Instruction::new(buffer);
                     CPUState::FetchOperand
                 }
             }
             CPUState::FetchOperand => {
-                if !matches!(
-                    self.registers.ir.get_addressing_mode(),
-                    AddressingMode::Implied
-                ) {
-                    self.registers.pc = self.registers.pc.wrapping_add(1);
+                if !matches!(self.registers.ir.get_addressing_mode(), AddressingMode::Implied) {
+                    self.registers.increment_pc();
                 }
 
                 match self.registers.ir.get_addressing_mode() {
@@ -145,8 +148,7 @@ impl CPUInternal {
                 }
             }
             CPUState::JumpAbsolute => {
-                self.registers.set_pcl(self.pcl);
-                self.registers.set_pch(buffer);
+                self.registers.set_pc(self.pcl, buffer);
                 CPUState::FetchInstruction
             }
             CPUState::JumpIndirect(cycle) => match cycle {
@@ -156,18 +158,17 @@ impl CPUInternal {
                 }
                 1 => {
                     self.latch = buffer;
-                    self.pcl = self.pcl.wrapping_add(1);
+                    self.increment_pcl();
                     CPUState::JumpIndirect(2)
                 }
                 2 => {
-                    self.registers.set_pcl(self.latch);
-                    self.registers.set_pch(buffer);
+                    self.registers.set_pc(self.latch, buffer);
                     CPUState::FetchInstruction
                 }
                 _ => unreachable!("Invalid cycle for jump indirect"),
-            },
+            }
             CPUState::FetchOperandHigh => {
-                self.registers.pc = self.registers.pc.wrapping_add(1);
+                self.registers.increment_pc();
                 match self.registers.ir.get_addressing_mode() {
                     AddressingMode::Absolute(mode) => match mode {
                         None => self.read_or_write_state(),
@@ -176,7 +177,7 @@ impl CPUInternal {
                                 IndexMode::X => self.registers.x,
                                 IndexMode::Y => self.registers.y,
                             });
-                            CPUState::Read(true)
+                            CPUState::DummyRead
                         }
                     },
                     _ => unreachable!("Invalid addressing mode for given state"),
@@ -189,52 +190,66 @@ impl CPUInternal {
                 }
                 1 => {
                     self.latch = buffer;
-                    self.pcl = self.pcl.wrapping_add(1);
+                    self.increment_pcl();
+
+                    CPUState::ReadIndirect(2)
+                }
+                2 => {
+                    self.pch = buffer;
+                    self.pcl = self.latch;
 
                     match self.registers.ir.get_addressing_mode() {
                         AddressingMode::Indirect(mode) => match mode {
-                            IndexMode::X => CPUState::ReadIndirect(2),
-                            IndexMode::Y => CPUState::ReadIndirect(3),
+                            IndexMode::X => CPUState::Read,
+                            IndexMode::Y => {
+                                self.pcl = self.pcl.wrapping_add(self.registers.y);
+                                CPUState::DummyRead
+                            },
                         },
                         _ => unreachable!("Invalid addressing mode for given state"),
                     }
                 }
-                2 => {
-                    self.pcl = self.latch;
-                    self.pch = buffer;
-                    CPUState::Read(false)
-                },
-                3 => {
-                    self.pcl = self.latch + self.registers.y;
-                    self.pch = buffer;
-                    CPUState::Read(true)
-                }
                 _ => unreachable!("Invalid cycle for read indirect"),
-            },
-            CPUState::Read(reread) => {
-                if self.fix_pch {
-                    self.pch = self.pch.wrapping_add(1);
-                    self.fix_pch = false;
-                    CPUState::Read(false)
-                } else if reread {
-                    CPUState::Read(false)
-                } else if self.registers.ir.is_write() {
-                    self.load_alu(self.get_register_value(self.registers.ir.get_input()), buffer);
-                    CPUState::Write
-                } else {
-                    self.load_alu(todo!(), buffer)
-                }
             }
-            CPUState::Write => {
-                todo!(/*self.latch = ...*/);
+            CPUState::DummyRead => {
+                self.fix_pch();
+                CPUState::Read
+            }
+            CPUState::Read => {
+                if self.fix_pch() {
+                    return CPUState::Read
+                }
 
-                if self.registers.ir.is_read() {
-                    CPUState::Write
+                self.load_alu(self.get_register_value(self.registers.ir.get_input()), buffer);
+                if self.registers.ir.is_write() {
+                    self.latch = buffer;
+                    CPUState::DummyWrite
                 } else {
                     CPUState::FetchInstruction
                 }
             }
+            CPUState::DummyWrite => CPUState::Write,
+            CPUState::Write => {
+                todo!(/*self.latch = ...*/);
+                CPUState::FetchInstruction
+            }
         }
+    }
+
+    fn increment_pcl(&mut self) -> bool {
+        let overflow;
+        (self.pcl, overflow) = self.pcl.overflowing_add(1);
+        overflow
+    }
+
+    fn fix_pch(&mut self) -> bool {
+        if self.fix_pch {
+            self.fix_pch = false;
+            self.pch = self.pch.wrapping_add(1);
+            return true
+        }
+
+        false
     }
 
     fn get_register_value(&self, target: TargetRegister) -> u8 {
@@ -247,7 +262,7 @@ impl CPUInternal {
 
     fn load_alu(&mut self, a: u8, buffer: u8) -> CPUState {
         match self.registers.ir.get_alu_operation() {
-            None => self.latch = buffer,
+            None => self.result = buffer,
             Some(operation) => self.alu.set(a, buffer, operation),
         }
 
@@ -256,7 +271,7 @@ impl CPUInternal {
 
     fn read_or_write_state(&mut self) -> CPUState {
         if self.registers.ir.is_read() {
-            CPUState::Read(false)
+            CPUState::Read
         } else if self.registers.ir.is_write() {
             CPUState::Write
         } else {
