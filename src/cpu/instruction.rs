@@ -1,6 +1,7 @@
 use crate::cpu::alu::ALUOperation;
 use crate::cpu::instruction::AddressingMode::*;
 use crate::cpu::instruction::IndexMode::*;
+use crate::cpu::status::StatusRegister;
 
 pub enum TargetRegister {
     A,
@@ -79,6 +80,20 @@ impl Instruction {
             0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => TargetRegister::X,
             0xA0 | 0xA4 | 0xB4 | 0xAC | 0xBC => TargetRegister::Y,
             _ => TargetRegister::A,
+        }
+    }
+
+    pub fn branch(&self, status: &StatusRegister) -> bool {
+        match self.get_opcode() {
+            0x10 => !status.get_negative(),
+            0x30 => status.get_negative(),
+            0x50 => !status.get_overflow(),
+            0x70 => status.get_overflow(),
+            0x90 => !status.get_carry(),
+            0xB0 => status.get_carry(),
+            0xD0 => !status.get_zero(),
+            0xF0 => status.get_zero(),
+            _ => unreachable!("Opcode is not a branch instruction"),
         }
     }
 }
