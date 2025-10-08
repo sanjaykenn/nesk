@@ -1,5 +1,5 @@
 use crate::cpu::alu::ALU;
-use crate::cpu::instruction::{AddressingMode, IndexMode, Instruction};
+use crate::cpu::instruction::{AddressingMode, IndexMode, Instruction, TargetRegister};
 use crate::cpu::status::StatusRegister;
 
 struct Registers {
@@ -62,6 +62,7 @@ struct CPUInternal {
     latch: u8,
     fix_pch: bool,
     branch: bool,
+    output: Option<TargetRegister>,
 }
 
 impl CPUInternal {
@@ -78,10 +79,22 @@ impl CPUInternal {
             _ => self.read(self.get_pc()),
         };
 
+        if let Some(output) = self.output.take() {
+            match output {
+                TargetRegister::A => self.registers.a = self.latch,
+                TargetRegister::X => self.registers.x = self.latch,
+                TargetRegister::Y => self.registers.y = self.latch,
+            }
+        }
+
+        if let Some(value) = self.alu.get_result(&mut self.registers.sr) {
+            self.latch = value
+        }
+
         self.state = self.next(buffer);
 
         if matches!(self.state, CPUState::Write) {
-            self.write(self.registers.pc, self.latch);
+            self.write(self.registers.pc, self.latch)
         }
     }
 
@@ -206,8 +219,7 @@ impl CPUInternal {
                 } else if reread {
                     CPUState::Read(false)
                 } else if self.registers.ir.is_write() {
-                    //self.alu.a = todo!();
-                    //self.alu.b = buffer;
+                    self.load_alu(self.get_register_value(self.registers.ir.get_input()), buffer);
                     CPUState::Write
                 } else {
                     self.load_alu(todo!(), buffer)
@@ -222,6 +234,14 @@ impl CPUInternal {
                     CPUState::FetchInstruction
                 }
             }
+        }
+    }
+
+    fn get_register_value(&self, target: TargetRegister) -> u8 {
+        match target {
+            TargetRegister::A => self.registers.a,
+            TargetRegister::X => self.registers.x,
+            TargetRegister::Y => self.registers.y,
         }
     }
 

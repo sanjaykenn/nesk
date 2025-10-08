@@ -2,6 +2,12 @@ use crate::cpu::alu::ALUOperation;
 use crate::cpu::instruction::AddressingMode::*;
 use crate::cpu::instruction::IndexMode::*;
 
+pub enum TargetRegister {
+    A,
+    X,
+    Y,
+}
+
 #[derive(Clone, Copy)]
 pub enum IndexMode {
     X,
@@ -58,5 +64,21 @@ impl Instruction {
 
     pub fn get_alu_operation(&self) -> Option<ALUOperation> {
         todo!()
+    }
+
+    pub fn get_input(&self) -> TargetRegister {
+        match self.get_opcode() {
+            0xEB | 0xE0 | 0xE4 | 0xEC | 0x86 | 0x96 | 0x8E => TargetRegister::X,
+            0xE8 | 0xC0 | 0xC4 | 0xCC | 0x84 | 0x94 | 0x8C => TargetRegister::Y,
+            _ => TargetRegister::A,
+        }
+    }
+
+    pub fn get_output(&self) -> TargetRegister {
+        match self.get_opcode() {
+            0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => TargetRegister::X,
+            0xA0 | 0xA4 | 0xB4 | 0xAC | 0xBC => TargetRegister::Y,
+            _ => TargetRegister::A,
+        }
     }
 }
