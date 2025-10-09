@@ -40,7 +40,7 @@ const ADDRESS_TABLE: [AddressingMode; 0x20] = [
 ];
 
 const ALU_OPERATIONS: [Option<ALUOperation>; 0x20] = [
-    None, None, None, None, None, None, None, None,
+    None, Some(ALUOperation::BIT), None, None, None, None, Some(ALUOperation::CMP), Some(ALUOperation::SBC),
     Some(ALUOperation::OR), Some(ALUOperation::AND), Some(ALUOperation::EOR), Some(ALUOperation::ADC), None, None, Some(ALUOperation::CMP), Some(ALUOperation::SBC),
     Some(ALUOperation::ASL), Some(ALUOperation::ROL), Some(ALUOperation::LSR), Some(ALUOperation::ROR), None, None, Some(ALUOperation::DEC), Some(ALUOperation::INC),
     None, None, None, None, None, None, None, None,

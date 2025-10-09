@@ -125,10 +125,7 @@ impl CPUInternal {
 
                 match self.registers.ir.get_addressing_mode() {
                     AddressingMode::Implied => {
-                        self.load_alu(0, self.get_register_value(self.registers.ir.get_input()));
-                        self.output = Some(self.registers.ir.get_output());
-
-                        CPUState::FetchInstruction
+                        self.load_alu(0, self.get_register_value(self.registers.ir.get_input()))
                     },
                     AddressingMode::Immediate => self.load_alu(self.get_register_value(self.registers.ir.get_input()), buffer),
                     AddressingMode::Branch => {
@@ -242,9 +239,9 @@ impl CPUInternal {
                 self.load_alu(self.get_register_value(self.registers.ir.get_input()), buffer);
                 if self.registers.ir.is_write() {
                     self.latch = buffer;
+                    self.output = None;
                     CPUState::DummyWrite
                 } else {
-                    self.output = Some(self.registers.ir.get_output());
                     CPUState::FetchInstruction
                 }
             }
@@ -295,9 +292,16 @@ impl CPUInternal {
     }
 
     fn load_alu(&mut self, a: u8, buffer: u8) -> CPUState {
+        self.output = Some(self.registers.ir.get_output());
         match self.registers.ir.get_alu_operation() {
             None => self.result = buffer,
-            Some(operation) => self.alu.set(a, buffer, operation),
+            Some(operation) => {
+                if matches!(operation, ALUOperation::BIT | ALUOperation::CMP) {
+                    self.output = None
+                }
+
+                self.alu.set(a, buffer, operation)
+            },
         }
 
         CPUState::FetchInstruction
