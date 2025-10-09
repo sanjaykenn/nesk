@@ -57,7 +57,7 @@ enum CPUState {
     JumpIndirect(i32),
     IndexedRead(IndexMode),
     FetchOperandHigh(Option<IndexMode>),
-    ReadIndirect(i32),
+    Indirect(i32),
     DummyRead,
     Read,
     DummyWrite,
@@ -144,14 +144,13 @@ impl CPUInternal {
                             0x4C => CPUState::JumpAbsolute,
                             0x6C => CPUState::JumpIndirect(0),
                             _ => match addressing_mode {
-                                AddressingMode::ZeroPage(index) => match index {
-                                    None => self.read_or_write_state(),
-                                    Some(index) => CPUState::IndexedRead(index)
-                                }
-                                AddressingMode::Absolute(index) => CPUState::FetchOperandHigh(index),
+                                AddressingMode::ZeroPage => self.read_or_write_state(),
+                                AddressingMode::ZeroPageIndexed(index) => CPUState::IndexedRead(index),
+                                AddressingMode::Absolute => CPUState::FetchOperandHigh(None),
+                                AddressingMode::AbsoluteIndexed(index) => CPUState::FetchOperandHigh(Some(index)),
                                 AddressingMode::Indirect(index) => match index {
-                                    IndexMode::X => CPUState::ReadIndirect(0),
-                                    IndexMode::Y => CPUState::ReadIndirect(1),
+                                    IndexMode::X => CPUState::Indirect(0),
+                                    IndexMode::Y => CPUState::Indirect(1),
                                 },
                                 _ => unreachable!("Invalid addressing mode for given state"),
                             },
@@ -188,6 +187,7 @@ impl CPUInternal {
             }
             CPUState::FetchOperandHigh(index) => {
                 self.registers.increment_pc();
+                self.pch = buffer;
                 match index {
                     None => self.read_or_write_state(),
                     Some(index) => {
@@ -195,19 +195,23 @@ impl CPUInternal {
                             IndexMode::X => self.registers.x,
                             IndexMode::Y => self.registers.y,
                         });
-                        CPUState::Read
+                        if self.registers.ir.is_write() {
+                            CPUState::DummyRead
+                        } else {
+                            CPUState::Read
+                        }
                     }
                 }
             }
-            CPUState::ReadIndirect(cycle) => match cycle {
+            CPUState::Indirect(cycle) => match cycle {
                 0 => {
                     self.pcl = buffer.wrapping_add(self.registers.x);
-                    CPUState::ReadIndirect(1)
+                    CPUState::Indirect(1)
                 }
                 1 => {
                     self.latch = buffer;
                     self.increment_pcl();
-                    CPUState::ReadIndirect(2)
+                    CPUState::Indirect(2)
                 }
                 2 => {
                     self.pch = buffer;
@@ -215,10 +219,14 @@ impl CPUInternal {
 
                     match self.registers.ir.get_addressing_mode() {
                         AddressingMode::Indirect(mode) => match mode {
-                            IndexMode::X => CPUState::Read,
+                            IndexMode::X => self.read_or_write_state(),
                             IndexMode::Y => {
                                 self.pcl = self.pcl.wrapping_add(self.registers.y);
-                                CPUState::DummyRead
+                                if self.registers.ir.is_write() {
+                                    CPUState::DummyRead
+                                } else {
+                                   CPUState::Read
+                                }
                             },
                         },
                         _ => unreachable!("Invalid addressing mode for given state"),

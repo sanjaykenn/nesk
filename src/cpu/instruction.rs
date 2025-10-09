@@ -19,21 +19,23 @@ pub enum IndexMode {
 pub enum AddressingMode {
     Implied,
     Immediate,
-    ZeroPage(Option<IndexMode>),
-    Absolute(Option<IndexMode>),
+    ZeroPage,
+    ZeroPageIndexed(IndexMode),
+    Absolute,
+    AbsoluteIndexed(IndexMode),
     Indirect(IndexMode),
     Branch
 }
 
 const ADDRESS_TABLE: [AddressingMode; 0x20] = [
     Implied, Indirect(X), Immediate, Indirect(X),
-    ZeroPage(None), ZeroPage(None), ZeroPage(None), ZeroPage(None),
+    ZeroPage, ZeroPage, ZeroPage, ZeroPage,
     Implied, Immediate, Implied, Immediate,
-    Absolute(None), Absolute(None), Absolute(None), Absolute(None), 
+    Absolute, Absolute, Absolute, Absolute,
     Branch, Indirect(Y), Immediate, Indirect(Y),
-    ZeroPage(Some(X)), ZeroPage(Some(X)), ZeroPage(Some(X)), ZeroPage(Some(X)),
-    Implied, Absolute(Some(Y)), Implied, Absolute(Some(Y)),
-    Absolute(Some(X)), Absolute(Some(X)), Absolute(Some(X)), Absolute(Some(X)),
+    ZeroPageIndexed(X), ZeroPageIndexed(X), ZeroPageIndexed(X), ZeroPageIndexed(X),
+    Implied, AbsoluteIndexed(Y), Implied, AbsoluteIndexed(Y),
+    AbsoluteIndexed(X), AbsoluteIndexed(X), AbsoluteIndexed(X), AbsoluteIndexed(X),
 ];
 
 pub struct Instruction(u8);
@@ -57,8 +59,8 @@ impl Instruction {
 
     pub fn get_addressing_mode(&self) -> AddressingMode {
         match self.get_opcode() {
-            0x96 | 0x97 | 0xB6 | 0xB7 => ZeroPage(Some(Y)),
-            0x9E | 0x9F | 0xBE | 0xBF => Absolute(Some(Y)),
+            0x96 | 0x97 | 0xB6 | 0xB7 => ZeroPageIndexed(Y),
+            0x9E | 0x9F | 0xBE | 0xBF => AbsoluteIndexed(Y),
             _ => ADDRESS_TABLE[(self.get_opcode() & 0x1F) as usize]
         }
     }
