@@ -1,5 +1,6 @@
 use crate::cpu::status::StatusRegister;
 
+#[derive(Clone, Copy)]
 pub enum ALUOperation {
     OR, AND, EOR, ADC, SBC, CMP, ASL, ROL, LSR, ROR, INC, DEC, BIT
 }

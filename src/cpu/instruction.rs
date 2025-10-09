@@ -38,6 +38,13 @@ const ADDRESS_TABLE: [AddressingMode; 0x20] = [
     AbsoluteIndexed(X), AbsoluteIndexed(X), AbsoluteIndexed(X), AbsoluteIndexed(X),
 ];
 
+const ALU_OPERATIONS: [Option<ALUOperation>; 0x20] = [
+    None, None, None, None, None, None, None, None,
+    Some(ALUOperation::OR), Some(ALUOperation::AND), Some(ALUOperation::EOR), Some(ALUOperation::ADC), None, None, Some(ALUOperation::CMP), Some(ALUOperation::SBC),
+    Some(ALUOperation::ASL), Some(ALUOperation::ROL), Some(ALUOperation::LSR), Some(ALUOperation::ROR), None, None, Some(ALUOperation::DEC), Some(ALUOperation::INC),
+    None, None, None, None, None, None, None, None,
+];
+
 pub struct Instruction(u8);
 
 impl Instruction {
@@ -66,21 +73,8 @@ impl Instruction {
     }
 
     pub fn get_alu_operation(&self) -> Option<ALUOperation> {
-        if self.get_opcode() & 0b11 == 0b01 {
-            match self.get_opcode() >> 5 {
-                0 => Some(ALUOperation::OR),
-                1 => Some(ALUOperation::AND),
-                2 => Some(ALUOperation::EOR),
-                3 => Some(ALUOperation::ADC),
-                4 => None,
-                5 => None,
-                6 => Some(ALUOperation::CMP),
-                7 => Some(ALUOperation::SBC),
-                _ => unreachable!("Invalid ALU operation"),
-            }
-        } else {
-            unimplemented!()
-        }
+        let index = (self.get_opcode() >> 1) & 0xFA | self.get_opcode() & 0b11;
+        ALU_OPERATIONS[index as usize]
     }
 
     pub fn get_input(&self) -> TargetRegister {

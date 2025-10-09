@@ -1,4 +1,4 @@
-use crate::cpu::alu::ALU;
+use crate::cpu::alu::{ALUOperation, ALU};
 use crate::cpu::instruction::{AddressingMode, IndexMode, Instruction, TargetRegister};
 use crate::cpu::status::StatusRegister;
 
@@ -101,7 +101,7 @@ impl CPUInternal {
 
         self.state = self.next(buffer);
 
-        if matches!(self.state, CPUState::Write) {
+        if matches!(self.state, CPUState::Write | CPUState::DummyWrite) {
             self.write(self.registers.pc, self.latch)
         }
     }
@@ -128,7 +128,17 @@ impl CPUInternal {
                 }
 
                 match self.registers.ir.get_addressing_mode() {
-                    AddressingMode::Implied => CPUState::FetchInstruction,
+                    AddressingMode::Implied => {
+                        match self.registers.ir.get_alu_operation() {
+                            None => {}
+                            Some(operation) => {
+                                self.alu.set(0, self.get_register_value(self.registers.ir.get_input()), operation);
+                                self.output = Some(self.registers.ir.get_output())
+                            },
+                        }
+
+                        CPUState::FetchInstruction
+                    },
                     AddressingMode::Immediate => self.load_alu(self.get_register_value(self.registers.ir.get_input()), buffer),
                     AddressingMode::Branch => {
                         self.latch = buffer;
