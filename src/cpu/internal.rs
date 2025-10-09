@@ -57,7 +57,7 @@ enum CPUState {
     JumpIndirect(i32),
     IndexedRead(IndexMode),
     FetchOperandHigh(Option<IndexMode>),
-    Indirect(i32),
+    Indirect(i32, IndexMode),
     DummyRead,
     Read,
     DummyWrite,
@@ -157,8 +157,8 @@ impl CPUInternal {
                                 AddressingMode::Absolute => CPUState::FetchOperandHigh(None),
                                 AddressingMode::AbsoluteIndexed(index) => CPUState::FetchOperandHigh(Some(index)),
                                 AddressingMode::Indirect(index) => match index {
-                                    IndexMode::X => CPUState::Indirect(0),
-                                    IndexMode::Y => CPUState::Indirect(1),
+                                    IndexMode::X => CPUState::Indirect(0, IndexMode::X),
+                                    IndexMode::Y => CPUState::Indirect(1, IndexMode::Y),
                                 },
                                 _ => unreachable!("Invalid addressing mode for given state"),
                             },
@@ -211,33 +211,30 @@ impl CPUInternal {
                     }
                 }
             }
-            CPUState::Indirect(cycle) => match cycle {
+            CPUState::Indirect(cycle, index) => match cycle {
                 0 => {
                     self.pcl = buffer.wrapping_add(self.registers.x);
-                    CPUState::Indirect(1)
+                    CPUState::Indirect(1, index)
                 }
                 1 => {
                     self.latch = buffer;
                     self.increment_pcl();
-                    CPUState::Indirect(2)
+                    CPUState::Indirect(2, index)
                 }
                 2 => {
                     self.pch = buffer;
                     self.pcl = self.latch;
 
-                    match self.registers.ir.get_addressing_mode() {
-                        AddressingMode::Indirect(mode) => match mode {
-                            IndexMode::X => self.read_or_write_state(),
-                            IndexMode::Y => {
-                                self.pcl = self.pcl.wrapping_add(self.registers.y);
-                                if self.registers.ir.is_write() {
-                                    CPUState::DummyRead
-                                } else {
-                                   CPUState::Read
-                                }
-                            },
+                    match index {
+                        IndexMode::X => self.read_or_write_state(),
+                        IndexMode::Y => {
+                            self.pcl = self.pcl.wrapping_add(self.registers.y);
+                            if self.registers.ir.is_write() {
+                                CPUState::DummyRead
+                            } else {
+                               CPUState::Read
+                            }
                         },
-                        _ => unreachable!("Invalid addressing mode for given state"),
                     }
                 }
                 _ => unreachable!("Invalid cycle for read indirect"),
