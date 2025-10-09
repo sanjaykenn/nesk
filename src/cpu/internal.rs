@@ -92,11 +92,7 @@ impl CPUInternal {
         if let Some(value) = self.alu.get_result(&mut self.registers.sr) {
             self.result = value
         } else if let Some(output) = self.output.take() {
-            match output {
-                TargetRegister::A => self.registers.a = self.result,
-                TargetRegister::X => self.registers.x = self.result,
-                TargetRegister::Y => self.registers.y = self.result,
-            }
+            self.set_register_value(output);
         }
 
         self.state = self.next(buffer);
@@ -129,13 +125,8 @@ impl CPUInternal {
 
                 match self.registers.ir.get_addressing_mode() {
                     AddressingMode::Implied => {
-                        match self.registers.ir.get_alu_operation() {
-                            None => {}
-                            Some(operation) => {
-                                self.alu.set(0, self.get_register_value(self.registers.ir.get_input()), operation);
-                                self.output = Some(self.registers.ir.get_output())
-                            },
-                        }
+                        self.load_alu(0, self.get_register_value(self.registers.ir.get_input()));
+                        self.output = Some(self.registers.ir.get_output());
 
                         CPUState::FetchInstruction
                     },
@@ -290,6 +281,16 @@ impl CPUInternal {
             TargetRegister::A => self.registers.a,
             TargetRegister::X => self.registers.x,
             TargetRegister::Y => self.registers.y,
+            TargetRegister::SP => self.registers.sp,
+        }
+    }
+
+    fn set_register_value(&mut self, target: TargetRegister) {
+        match target {
+            TargetRegister::A => self.registers.a = self.result,
+            TargetRegister::X => self.registers.x = self.result,
+            TargetRegister::Y => self.registers.y = self.result,
+            TargetRegister::SP => self.registers.sp = self.result,
         }
     }
 
