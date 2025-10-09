@@ -66,7 +66,21 @@ impl Instruction {
     }
 
     pub fn get_alu_operation(&self) -> Option<ALUOperation> {
-        todo!()
+        if self.get_opcode() & 0b11 == 0b01 {
+            match self.get_opcode() >> 5 {
+                0 => Some(ALUOperation::OR),
+                1 => Some(ALUOperation::AND),
+                2 => Some(ALUOperation::EOR),
+                3 => Some(ALUOperation::ADC),
+                4 => None,
+                5 => None,
+                6 => Some(ALUOperation::CMP),
+                7 => Some(ALUOperation::SBC),
+                _ => unreachable!("Invalid ALU operation"),
+            }
+        } else {
+            unimplemented!()
+        }
     }
 
     pub fn get_input(&self) -> TargetRegister {

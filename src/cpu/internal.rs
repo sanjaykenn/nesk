@@ -89,16 +89,14 @@ impl CPUInternal {
             _ => self.read(self.get_pc()),
         };
 
-        if let Some(output) = self.output.take() {
-            match output {
-                TargetRegister::A => self.registers.a = self.latch,
-                TargetRegister::X => self.registers.x = self.latch,
-                TargetRegister::Y => self.registers.y = self.latch,
-            }
-        }
-
         if let Some(value) = self.alu.get_result(&mut self.registers.sr) {
             self.result = value
+        } else if let Some(output) = self.output.take() {
+            match output {
+                TargetRegister::A => self.registers.a = self.result,
+                TargetRegister::X => self.registers.x = self.result,
+                TargetRegister::Y => self.registers.y = self.result,
+            }
         }
 
         self.state = self.next(buffer);
@@ -248,12 +246,17 @@ impl CPUInternal {
                     self.latch = buffer;
                     CPUState::DummyWrite
                 } else {
+                    self.output = Some(self.registers.ir.get_output());
                     CPUState::FetchInstruction
                 }
             }
             CPUState::DummyWrite => CPUState::Write,
             CPUState::Write => {
-                self.latch = self.result;
+                if self.registers.ir.is_read() {
+                    self.latch = self.result;
+                } else {
+                    self.latch = self.get_register_value(self.registers.ir.get_input());
+                }
                 CPUState::FetchInstruction
             }
         }
