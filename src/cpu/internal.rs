@@ -1,4 +1,5 @@
 use crate::cpu::alu::{ALUOperation, ALU};
+use crate::cpu::CPUMemory;
 use crate::cpu::instruction::{AddressingMode, IndexMode, Instruction, TargetRegister};
 use crate::cpu::status::StatusRegister;
 
@@ -64,7 +65,7 @@ enum CPUState {
     Write,
     Break(i32),
     JumpSubroutine(i32),
-    ReturnFromInterrupt(i32),
+    ReturnInterrupt(i32),
     ReturnSubroutine(i32),
     PushRegister(TargetRegister),
     PullRegister(i32, TargetRegister),
@@ -84,18 +85,8 @@ struct CPUInternal {
 }
 
 impl CPUInternal {
-    pub fn tick(&mut self) {
-        let buffer = match self.state {
-            CPUState::FetchInstruction | CPUState::FetchOperand | CPUState::FetchOperandHigh(_) => self.read(self.registers.pc),
-            CPUState::JumpIndirect(cycle) => match cycle {
-                0 => self.read(self.get_pc()),
-                _ => self.read(self.registers.pc),
-            },
-            CPUState::Write | CPUState::Break(0) | CPUState::Break(1) | CPUState::Break(2) => 0,
-            CPUState::Break(3) => self.read(0xFFFE),
-            CPUState::Break(4) =>  self.read(0xFFFF),
-            _ => self.read(self.get_pc()),
-        };
+    pub fn tick(&mut self, memory: &mut dyn CPUMemory) {
+        let buffer = self.read(memory);
 
         if let Some(value) = self.alu.get_result(&mut self.registers.sr) {
             self.result = value
@@ -105,9 +96,46 @@ impl CPUInternal {
 
         self.state = self.next(buffer);
 
-        if matches!(self.state, CPUState::Write | CPUState::DummyWrite | CPUState::Break(0) | CPUState::Break(1) | CPUState::Break(2)) {
-            self.write(self.registers.pc, self.latch)
+        self.write(memory);
+    }
+
+    fn read(&mut self, memory: &mut dyn CPUMemory) -> u8 {
+        match self.state {
+            CPUState::JumpAbsolute | CPUState::JumpIndirect(0) | CPUState::IndexedRead(_)
+            | CPUState::Indirect(_, _) | CPUState::DummyRead | CPUState::Read => memory.read(self.get_pc()),
+            CPUState::FetchInstruction | CPUState::FetchOperand | CPUState::FetchOperandHigh(_)
+            | CPUState::JumpIndirect(_) | CPUState::ReturnSubroutine(3) | CPUState::JumpSubroutine(3) => memory.read(self.registers.pc),
+            CPUState::Break(3) => memory.read(0xFFFE),
+            CPUState::Break(4) =>  memory.read(0xFFFF),
+            CPUState::ReturnInterrupt(0) | CPUState::ReturnInterrupt(1) | CPUState::ReturnInterrupt(2)
+            | CPUState::ReturnSubroutine(0) | CPUState::ReturnSubroutine(1) | CPUState::PullRegister(0, _) => self.pop_stack(memory),
+            CPUState::ReturnInterrupt(3) | CPUState::ReturnSubroutine(2) | CPUState::PullRegister(1, _) | CPUState::JumpSubroutine(0) => self.peak_stack(memory),
+            _ => 0,
         }
+    }
+
+    fn write(&mut self, memory: &mut dyn CPUMemory) {
+        match self.state {
+            CPUState::Write | CPUState::DummyWrite => memory.write(self.get_pc(), self.latch),
+            CPUState::Break(0) | CPUState::Break(1) | CPUState::Break(2)
+            | CPUState::PushRegister(_) | CPUState::JumpSubroutine(1) | CPUState::JumpSubroutine(2) => self.push_to_stack(memory, self.latch),
+            _ => {}
+        }
+    }
+
+    fn peak_stack(&self, memory: &mut dyn CPUMemory) -> u8 {
+        memory.read(0x0100 | (self.registers.sp as u16))
+    }
+
+    fn pop_stack(&mut self, memory: &mut dyn CPUMemory) -> u8 {
+        let result = self.peak_stack(memory);
+        self.registers.sp = self.registers.sp.wrapping_add(1);
+        result
+    }
+
+    fn push_to_stack(&mut self, memory: &mut dyn CPUMemory, value: u8) {
+        memory.write(0x0100 | (self.registers.sp as u16), value);
+        self.registers.sp = self.registers.sp.wrapping_sub(1);
     }
 
     fn next(&mut self, buffer: u8) -> CPUState {
@@ -262,9 +290,9 @@ impl CPUInternal {
                 CPUState::FetchInstruction
             }
             CPUState::Break(cycle) => match cycle {
-                0 => { self.push_to_stack(self.registers.get_pch()); CPUState::Break(1) },
-                1 => { self.push_to_stack(self.registers.get_pcl()); CPUState::Break(2) },
-                2 => { self.push_to_stack(self.registers.sr.get()); CPUState::Break(3) },
+                0 => { self.latch = self.registers.get_pch(); CPUState::Break(1) },
+                1 => { self.latch = self.registers.get_pcl(); CPUState::Break(2) },
+                2 => { self.latch = self.registers.sr.get(); CPUState::Break(3) },
                 3 => { self.registers.set_pcl(self.latch); CPUState::Break(4) },
                 4 => {
                     self.registers.set_pch(self.latch);
@@ -275,32 +303,32 @@ impl CPUInternal {
             },
             CPUState::JumpSubroutine(cycle) => match cycle {
                 0 => CPUState::JumpSubroutine(1),
-                1 => { self.push_to_stack(self.registers.get_pch()); CPUState::JumpSubroutine(1) },
-                2 => { self.push_to_stack(self.registers.get_pcl()); CPUState::JumpSubroutine(2) },
+                1 => { self.latch = self.registers.get_pch(); CPUState::JumpSubroutine(1) },
+                2 => { self.latch = self.registers.get_pcl(); CPUState::JumpSubroutine(2) },
                 3 => {
-                    self.registers.set_pcl(self.latch);
-                    self.registers.set_pcl(buffer);
+                    self.registers.set_pcl(self.pcl);
+                    self.registers.set_pch(buffer);
                     CPUState::FetchInstruction
                 },
                 _ => unreachable!("Invalid cycle for jump subroutine"),
             },
-            CPUState::ReturnFromInterrupt(cycle) => match cycle {
-                0 => { self.pop_stack(); CPUState::ReturnFromInterrupt(1) },
-                1 => { self.registers.sr.set(buffer); self.pop_stack(); CPUState::ReturnFromInterrupt(2) },
-                2 => { self.registers.set_pcl(buffer); self.pop_stack(); CPUState::ReturnFromInterrupt(3) },
+            CPUState::ReturnInterrupt(cycle) => match cycle {
+                0 => CPUState::ReturnInterrupt(1),
+                1 => { self.registers.sr.set(buffer); CPUState::ReturnInterrupt(2) },
+                2 => { self.registers.set_pcl(buffer); CPUState::ReturnInterrupt(3) },
                 3 => { self.registers.set_pch(buffer); CPUState::FetchInstruction },
                 _ => unreachable!("Invalid cycle for return from interrupt"),
             }
             CPUState::ReturnSubroutine(cycle) => match cycle {
-                0 => { self.pop_stack(); CPUState::ReturnFromInterrupt(1) },
-                1 => { self.registers.set_pcl(buffer); self.pop_stack(); CPUState::ReturnFromInterrupt(2) },
-                2 => { self.registers.set_pch(buffer); CPUState::ReturnFromInterrupt(3) },
+                0 => CPUState::ReturnInterrupt(1),
+                1 => { self.registers.set_pcl(buffer); CPUState::ReturnInterrupt(2) },
+                2 => { self.registers.set_pch(buffer); CPUState::ReturnInterrupt(3) },
                 3 => { self.registers.increment_pc(); CPUState::FetchInstruction },
                 _ => unreachable!("Invalid cycle for return from interrupt"),
             }
-            CPUState::PushRegister(target) => { self.push_to_stack(self.get_register_value(target)); CPUState::FetchInstruction },
+            CPUState::PushRegister(target) => { self.latch = self.get_register_value(target); CPUState::FetchInstruction },
             CPUState::PullRegister(cycle, target) => match cycle {
-                0 => { self.pop_stack(); CPUState::PullRegister(1, target) },
+                0 => CPUState::PullRegister(1, target),
                 1 => { self.set_register_value(target); CPUState::FetchInstruction}
                 _ => unreachable!("Invalid cycle for pull register"),
             },
@@ -311,7 +339,7 @@ impl CPUInternal {
         match self.registers.ir.get_opcode() {
             0x00 => return CPUState::Break(0),
             0x20 => return CPUState::JumpSubroutine(0),
-            0x40 => return CPUState::ReturnFromInterrupt(0),
+            0x40 => return CPUState::ReturnInterrupt(0),
             0x60 => return CPUState::ReturnSubroutine(0),
             0x08 | 0x48 => return CPUState::PushRegister(self.registers.ir.get_input()),
             0x18 => self.registers.sr.set_carry(false),
@@ -409,26 +437,4 @@ impl CPUInternal {
     fn get_pc(&self) -> u16 {
         self.pcl as u16 | (self.pch as u16) << 8
     }
-
-    fn push_to_stack(&mut self, value: u8) {
-        self.pcl = self.registers.sp;
-        self.pch = 0x01;
-        self.latch = value;
-        self.registers.sp = self.registers.sp.wrapping_sub(1);
-    }
-
-    fn peak_stack(&mut self) {
-        self.pcl = self.registers.sp;
-        self.pch = 0x01
-    }
-
-    fn pop_stack(&mut self) {
-        self.registers.sp = self.registers.sp.wrapping_add(1);
-    }
-
-    fn read(&mut self, addr: u16) -> u8 {
-        0
-    }
-
-    fn write(&mut self, addr: u16, data: u8) {}
 }
