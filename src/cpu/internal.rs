@@ -71,7 +71,7 @@ enum CPUState {
     PullRegister(i32, TargetRegister),
 }
 
-struct CPUInternal {
+pub struct CPUInternal {
     state: CPUState,
     registers: Registers,
     alu: ALU,
@@ -85,6 +85,29 @@ struct CPUInternal {
 }
 
 impl CPUInternal {
+    pub fn new() -> Self {
+        Self {
+            state: CPUState::FetchInstruction,
+            registers: Registers {
+                ir: Instruction::new(0),
+                a: 0,
+                x: 0,
+                y: 0,
+                sr: StatusRegister::new(),
+                sp: 0,
+                pc: 0,
+            },
+            alu: ALU::new(),
+            pcl: 0,
+            pch: 0,
+            latch: 0,
+            fix_pch: false,
+            branch: false,
+            output: None,
+            result: 0,
+        }
+    }
+    
     pub fn tick(&mut self, memory: &mut dyn CPUMemory) {
         let buffer = self.read(memory);
 
