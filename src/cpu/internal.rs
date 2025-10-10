@@ -92,6 +92,8 @@ impl CPUInternal {
                 _ => self.read(self.registers.pc),
             },
             CPUState::Write => 0,
+            CPUState::Break(3) => self.read(0xFFFE),
+            CPUState::Break(4) =>  self.read(0xFFFF),
             _ => self.read(self.get_pc()),
         };
 
@@ -258,7 +260,18 @@ impl CPUInternal {
                 }
                 CPUState::FetchInstruction
             }
-            CPUState::Break(_) => CPUState::FetchInstruction,
+            CPUState::Break(cycle) => match cycle {
+                0 => { self.push_to_stack(self.registers.get_pch()); CPUState::Break(1) },
+                1 => { self.push_to_stack(self.registers.get_pcl()); CPUState::Break(2) },
+                2 => { self.push_to_stack(self.registers.sr.get()); CPUState::Break(3) },
+                3 => { self.registers.set_pcl(self.latch); CPUState::Break(3) },
+                4 => {
+                    self.registers.set_pch(self.latch);
+                    self.registers.sr.set_interrupt(true);
+                    CPUState::FetchInstruction
+                },
+                _ => unreachable!("Invalid cycle for break"),
+            },
             CPUState::JumpSubroutine(_) => CPUState::FetchInstruction,
             CPUState::ReturnFromInterrupt(_) => CPUState::FetchInstruction,
             CPUState::ReturnSubroutine(_) => CPUState::FetchInstruction,
@@ -370,6 +383,18 @@ impl CPUInternal {
 
     fn get_pc(&self) -> u16 {
         self.pcl as u16 | (self.pch as u16) << 8
+    }
+
+    fn push_to_stack(&mut self, value: u8) {
+        self.pcl = self.registers.sp;
+        self.pch = 0x01;
+        self.latch = value;
+        self.registers.sp = self.registers.sp.wrapping_sub(1);
+    }
+
+    fn peak_stack(&mut self) {
+        self.pcl = self.registers.sp;
+        self.pch = 0x01
     }
 
     fn read(&mut self, addr: u16) -> u8 {
