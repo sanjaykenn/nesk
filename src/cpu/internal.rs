@@ -91,7 +91,7 @@ impl CPUInternal {
                 0 => self.read(self.get_pc()),
                 _ => self.read(self.registers.pc),
             },
-            CPUState::Write => 0,
+            CPUState::Write | CPUState::Break(0) | CPUState::Break(1) | CPUState::Break(2) => 0,
             CPUState::Break(3) => self.read(0xFFFE),
             CPUState::Break(4) =>  self.read(0xFFFF),
             _ => self.read(self.get_pc()),
@@ -105,7 +105,7 @@ impl CPUInternal {
 
         self.state = self.next(buffer);
 
-        if matches!(self.state, CPUState::Write | CPUState::DummyWrite) {
+        if matches!(self.state, CPUState::Write | CPUState::DummyWrite | CPUState::Break(0) | CPUState::Break(1) | CPUState::Break(2)) {
             self.write(self.registers.pc, self.latch)
         }
     }
@@ -145,6 +145,7 @@ impl CPUInternal {
                         match self.registers.ir.get_opcode() {
                             0x4C => CPUState::JumpAbsolute,
                             0x6C => CPUState::JumpIndirect(0),
+                            0x20 => CPUState::JumpSubroutine(0),
                             _ => match addressing_mode {
                                 AddressingMode::ZeroPage => self.read_or_write_state(),
                                 AddressingMode::ZeroPageIndexed(index) => CPUState::IndexedRead(index),
@@ -264,7 +265,7 @@ impl CPUInternal {
                 0 => { self.push_to_stack(self.registers.get_pch()); CPUState::Break(1) },
                 1 => { self.push_to_stack(self.registers.get_pcl()); CPUState::Break(2) },
                 2 => { self.push_to_stack(self.registers.sr.get()); CPUState::Break(3) },
-                3 => { self.registers.set_pcl(self.latch); CPUState::Break(3) },
+                3 => { self.registers.set_pcl(self.latch); CPUState::Break(4) },
                 4 => {
                     self.registers.set_pch(self.latch);
                     self.registers.sr.set_interrupt(true);
@@ -272,7 +273,17 @@ impl CPUInternal {
                 },
                 _ => unreachable!("Invalid cycle for break"),
             },
-            CPUState::JumpSubroutine(_) => CPUState::FetchInstruction,
+            CPUState::JumpSubroutine(cycle) => match cycle {
+                0 => CPUState::JumpSubroutine(1),
+                1 => { self.push_to_stack(self.registers.get_pch()); CPUState::JumpSubroutine(1) },
+                2 => { self.push_to_stack(self.registers.get_pcl()); CPUState::JumpSubroutine(2) },
+                3 => {
+                    self.registers.set_pcl(self.latch);
+                    self.registers.set_pcl(buffer);
+                    CPUState::FetchInstruction
+                },
+                _ => unreachable!("Invalid cycle for jump subroutine"),
+            },
             CPUState::ReturnFromInterrupt(_) => CPUState::FetchInstruction,
             CPUState::ReturnSubroutine(_) => CPUState::FetchInstruction,
             CPUState::PushRegister(_) => CPUState::FetchInstruction,

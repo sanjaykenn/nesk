@@ -69,6 +69,7 @@ impl Instruction {
         match self.get_opcode() {
             0x96 | 0x97 | 0xB6 | 0xB7 => ZeroPageIndexed(Y),
             0x9E | 0x9F | 0xBE | 0xBF => AbsoluteIndexed(Y),
+            0x20 => Absolute,
             _ => ADDRESS_TABLE[(self.get_opcode() & 0x1F) as usize]
         }
     }
