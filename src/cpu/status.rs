@@ -29,6 +29,14 @@ impl StatusRegister {
         self.set_sr(self.get_sr() & 0b10111111 | (value as u8) << 6);
     }
 
+    pub fn get_decimal(&self) -> bool {
+        self.get_sr() & 0b00001000 != 0
+    }
+
+    pub fn set_decimal(&mut self, value: bool) {
+        self.set_sr(self.get_sr() & 0b11110111 | (value as u8) << 3);
+    }
+
     pub fn get_interrupt(&self) -> bool {
         self.get_sr() & 0b00000100 != 0
     }

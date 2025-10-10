@@ -62,6 +62,12 @@ enum CPUState {
     Read,
     DummyWrite,
     Write,
+    Break(i32),
+    JumpSubroutine(i32),
+    ReturnFromInterrupt(i32),
+    ReturnSubroutine(i32),
+    PushRegister(i32),
+    PullRegister(i32),
 }
 
 struct CPUInternal {
@@ -124,9 +130,7 @@ impl CPUInternal {
                 }
 
                 match self.registers.ir.get_addressing_mode() {
-                    AddressingMode::Implied => {
-                        self.load_alu(0, self.get_register_value(self.registers.ir.get_input()))
-                    },
+                    AddressingMode::Implied => self.implied_instructions(),
                     AddressingMode::Immediate => self.load_alu(self.get_register_value(self.registers.ir.get_input()), buffer),
                     AddressingMode::Branch => {
                         self.latch = buffer;
@@ -254,7 +258,42 @@ impl CPUInternal {
                 }
                 CPUState::FetchInstruction
             }
+            CPUState::Break(_) => CPUState::FetchInstruction,
+            CPUState::JumpSubroutine(_) => CPUState::FetchInstruction,
+            CPUState::ReturnFromInterrupt(_) => CPUState::FetchInstruction,
+            CPUState::ReturnSubroutine(_) => CPUState::FetchInstruction,
+            CPUState::PushRegister(_) => CPUState::FetchInstruction,
+            CPUState::PullRegister(_) => CPUState::FetchInstruction,
         }
+    }
+
+    fn implied_instructions(&mut self) -> CPUState {
+        match self.registers.ir.get_opcode() {
+            0x00 => return CPUState::Break(0),
+            0x20 => return CPUState::JumpSubroutine(0),
+            0x40 => return CPUState::ReturnFromInterrupt(0),
+            0x60 => return CPUState::ReturnSubroutine(0),
+            0x08 => return CPUState::PushRegister(0),
+            0x18 => self.registers.sr.set_carry(false),
+            0x28 => return CPUState::PullRegister(0),
+            0x38 => self.registers.sr.set_carry(true),
+            0x48 => return CPUState::PushRegister(0),
+            0x58 => self.registers.sr.set_interrupt(false),
+            0x68 => return CPUState::PullRegister(0),
+            0x78 => self.registers.sr.set_interrupt(true),
+            0x88 => return self.load_alu_operation(0, self.registers.y, ALUOperation::DEC, TargetRegister::Y),
+            0x98 => return self.setup_transfer(TargetRegister::Y, TargetRegister::A),
+            0xA8 => return self.setup_transfer(TargetRegister::A, TargetRegister::Y),
+            0xB8 => self.registers.sr.set_overflow(false),
+            0xC8 => return self.load_alu_operation(0, self.registers.y, ALUOperation::INC, TargetRegister::Y),
+            0xD8 => self.registers.sr.set_decimal(false),
+            0xE8 => return self.load_alu_operation(0, self.registers.x, ALUOperation::INC, TargetRegister::X),
+            0xF8 => self.registers.sr.set_decimal(true),
+            0xEA => {},
+            _ => return self.load_alu(0, self.get_register_value(self.registers.ir.get_input())),
+        }
+
+        CPUState::FetchInstruction
     }
 
     fn increment_pcl(&mut self) -> bool {
@@ -304,6 +343,18 @@ impl CPUInternal {
             },
         }
 
+        CPUState::FetchInstruction
+    }
+
+    fn setup_transfer(&mut self, input: TargetRegister, output: TargetRegister) -> CPUState {
+        self.result = self.get_register_value(input);
+        self.output = Some(output);
+        CPUState::FetchInstruction
+    }
+
+    fn load_alu_operation(&mut self, a: u8, buffer: u8, operation: ALUOperation, output: TargetRegister) -> CPUState {
+        self.alu.set(a, buffer, operation);
+        self.output = Some(output);
         CPUState::FetchInstruction
     }
 

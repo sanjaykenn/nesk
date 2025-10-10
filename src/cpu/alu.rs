@@ -54,8 +54,8 @@ impl ALU {
                     result = self.b >> 1 | (status.get_carry() as u8) << 7;
                     status.set_carry(self.b & 1 != 0);
                 }
-                ALUOperation::INC => result = self.a.wrapping_add(1),
-                ALUOperation::DEC => result = self.a.wrapping_sub(1),
+                ALUOperation::INC => result = self.b.wrapping_add(1),
+                ALUOperation::DEC => result = self.b.wrapping_sub(1),
                 ALUOperation::BIT => {
                     status.set_negative(self.b & 0b10000000 != 0);
                     status.set_overflow(self.b & 0b01000000 != 0);
