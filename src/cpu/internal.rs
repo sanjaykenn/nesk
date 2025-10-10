@@ -66,8 +66,8 @@ enum CPUState {
     JumpSubroutine(i32),
     ReturnFromInterrupt(i32),
     ReturnSubroutine(i32),
-    PushRegister(i32),
-    PullRegister(i32),
+    PushRegister(TargetRegister),
+    PullRegister(i32, TargetRegister),
 }
 
 struct CPUInternal {
@@ -298,8 +298,12 @@ impl CPUInternal {
                 3 => { self.registers.increment_pc(); CPUState::FetchInstruction },
                 _ => unreachable!("Invalid cycle for return from interrupt"),
             }
-            CPUState::PushRegister(_) => CPUState::FetchInstruction,
-            CPUState::PullRegister(_) => CPUState::FetchInstruction,
+            CPUState::PushRegister(target) => { self.push_to_stack(self.get_register_value(target)); CPUState::FetchInstruction },
+            CPUState::PullRegister(cycle, target) => match cycle {
+                0 => { self.pop_stack(); CPUState::PullRegister(1, target) },
+                1 => { self.set_register_value(target); CPUState::FetchInstruction}
+                _ => unreachable!("Invalid cycle for pull register"),
+            },
         }
     }
 
@@ -309,13 +313,11 @@ impl CPUInternal {
             0x20 => return CPUState::JumpSubroutine(0),
             0x40 => return CPUState::ReturnFromInterrupt(0),
             0x60 => return CPUState::ReturnSubroutine(0),
-            0x08 => return CPUState::PushRegister(0),
+            0x08 | 0x48 => return CPUState::PushRegister(self.registers.ir.get_input()),
             0x18 => self.registers.sr.set_carry(false),
-            0x28 => return CPUState::PullRegister(0),
+            0x28 | 0x68 => return CPUState::PullRegister(0, self.registers.ir.get_output()),
             0x38 => self.registers.sr.set_carry(true),
-            0x48 => return CPUState::PushRegister(0),
             0x58 => self.registers.sr.set_interrupt(false),
-            0x68 => return CPUState::PullRegister(0),
             0x78 => self.registers.sr.set_interrupt(true),
             0x88 => return self.load_alu_operation(0, self.registers.y, ALUOperation::DEC, TargetRegister::Y),
             0x98 => return self.setup_transfer(TargetRegister::Y, TargetRegister::A),

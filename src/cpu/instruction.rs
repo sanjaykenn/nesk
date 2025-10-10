@@ -3,6 +3,7 @@ use crate::cpu::instruction::AddressingMode::*;
 use crate::cpu::instruction::IndexMode::*;
 use crate::cpu::status::StatusRegister;
 
+#[derive(Clone, Copy)]
 pub enum TargetRegister {
     A,
     X,
