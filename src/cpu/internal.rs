@@ -284,8 +284,20 @@ impl CPUInternal {
                 },
                 _ => unreachable!("Invalid cycle for jump subroutine"),
             },
-            CPUState::ReturnFromInterrupt(_) => CPUState::FetchInstruction,
-            CPUState::ReturnSubroutine(_) => CPUState::FetchInstruction,
+            CPUState::ReturnFromInterrupt(cycle) => match cycle {
+                0 => { self.pop_stack(); CPUState::ReturnFromInterrupt(1) },
+                1 => { self.registers.sr.set(buffer); self.pop_stack(); CPUState::ReturnFromInterrupt(2) },
+                2 => { self.registers.set_pcl(buffer); self.pop_stack(); CPUState::ReturnFromInterrupt(3) },
+                3 => { self.registers.set_pch(buffer); CPUState::FetchInstruction },
+                _ => unreachable!("Invalid cycle for return from interrupt"),
+            }
+            CPUState::ReturnSubroutine(cycle) => match cycle {
+                0 => { self.pop_stack(); CPUState::ReturnFromInterrupt(1) },
+                1 => { self.registers.set_pcl(buffer); self.pop_stack(); CPUState::ReturnFromInterrupt(2) },
+                2 => { self.registers.set_pch(buffer); CPUState::ReturnFromInterrupt(3) },
+                3 => { self.registers.increment_pc(); CPUState::FetchInstruction },
+                _ => unreachable!("Invalid cycle for return from interrupt"),
+            }
             CPUState::PushRegister(_) => CPUState::FetchInstruction,
             CPUState::PullRegister(_) => CPUState::FetchInstruction,
         }
@@ -406,6 +418,10 @@ impl CPUInternal {
     fn peak_stack(&mut self) {
         self.pcl = self.registers.sp;
         self.pch = 0x01
+    }
+
+    fn pop_stack(&mut self) {
+        self.registers.sp = self.registers.sp.wrapping_add(1);
     }
 
     fn read(&mut self, addr: u16) -> u8 {
