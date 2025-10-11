@@ -117,9 +117,11 @@ impl CPUInternal {
             }
         }
 
-        self.state = self.next(buffer);
+        let state = self.next(buffer);
 
         self.write(memory);
+
+        self.state = state;
     }
 
     fn read(&mut self, memory: &mut dyn CPUMemory) -> u8 {
@@ -177,6 +179,7 @@ impl CPUInternal {
                     } else {
                         self.registers.set_pch(self.registers.get_pch().wrapping_sub(1))
                     }
+                    self.fix_pch = false;
                     CPUState::FetchInstruction
                 } else {
                     self.registers.increment_pc();
