@@ -48,7 +48,7 @@ const ALU_OPERATIONS: [Option<ALUOperation>; 0x20] = [
     Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), None,
     Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), None,
     Some(ALUOperation::CMP), Some(ALUOperation::CMP), Some(ALUOperation::DEC), None,
-    Some(ALUOperation::SBC), Some(ALUOperation::SBC), Some(ALUOperation::INC), None
+    Some(ALUOperation::CMP), Some(ALUOperation::SBC), Some(ALUOperation::INC), None
 ];
 
 pub struct Instruction(u8);
