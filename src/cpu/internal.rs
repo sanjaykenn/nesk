@@ -316,9 +316,9 @@ impl CPUInternal {
                 0 => { self.latch = self.registers.get_pch(); CPUState::Break(1) },
                 1 => { self.latch = self.registers.get_pcl(); CPUState::Break(2) },
                 2 => { self.latch = self.registers.sr.get(); CPUState::Break(3) },
-                3 => { self.registers.set_pcl(self.latch); CPUState::Break(4) },
+                3 => { self.registers.set_pcl(buffer); CPUState::Break(4) },
                 4 => {
-                    self.registers.set_pch(self.latch);
+                    self.registers.set_pch(buffer);
                     self.registers.sr.set_interrupt(true);
                     CPUState::FetchInstruction
                 },
