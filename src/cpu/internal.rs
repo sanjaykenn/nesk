@@ -358,9 +358,10 @@ impl CPUInternal {
                 _ => unreachable!("Invalid cycle for return from interrupt"),
             }
             CPUState::PushRegister(target) => { self.latch = self.get_register_value(target); CPUState::FetchInstruction },
+            CPUState::PullRegister(1, TargetRegister::SR) => { self.set_register_value(TargetRegister::SR, buffer); CPUState::FetchInstruction },
             CPUState::PullRegister(cycle, target) => match cycle {
                 0 => CPUState::PullRegister(1, target),
-                1 => { self.set_register_value(target, buffer); CPUState::FetchInstruction}
+                1 => self.load_alu_operation(0, buffer, ALUOperation::LOAD, target),
                 _ => unreachable!("Invalid cycle for pull register"),
             },
         }
