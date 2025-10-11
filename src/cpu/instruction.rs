@@ -72,6 +72,7 @@ impl Instruction {
 
     pub fn get_addressing_mode(&self) -> AddressingMode {
         match self.get_opcode() {
+            0xA0 | 0xC0 | 0xE0 => Immediate,
             0x96 | 0x97 | 0xB6 | 0xB7 => ZeroPageIndexed(Y),
             0x9E | 0x9F | 0xBE | 0xBF => AbsoluteIndexed(Y),
             0x20 => Absolute,
