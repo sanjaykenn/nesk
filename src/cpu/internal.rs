@@ -167,9 +167,16 @@ impl CPUInternal {
                 if self.branch {
                     let pcl;
                     (pcl, self.fix_pch) = self.registers.get_pcl().overflowing_add(self.latch);
+                    self.fix_pch ^= self.latch >= 0x80;
                     self.registers.set_pcl(pcl);
+                    self.branch = false;
                     CPUState::FetchInstruction
-                } else if self.fix_pch() {
+                } else if self.fix_pch {
+                    if self.registers.get_pcl() < 0x80 {
+                        self.registers.set_pch(self.registers.get_pch().wrapping_add(1))
+                    } else {
+                        self.registers.set_pch(self.registers.get_pch().wrapping_sub(1))
+                    }
                     CPUState::FetchInstruction
                 } else {
                     self.registers.increment_pc();
