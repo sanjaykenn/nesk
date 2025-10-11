@@ -94,7 +94,7 @@ impl CPUInternal {
                 x: 0,
                 y: 0,
                 sr: StatusRegister::new(),
-                sp: 0,
+                sp: 0xFD,
                 pc: 0,
             },
             alu: ALU::new(),
