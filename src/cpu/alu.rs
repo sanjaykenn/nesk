@@ -32,8 +32,10 @@ impl ALU {
             },
             Some(value) =>  {
                 let operator = self.operator.take().unwrap();
-                if matches!(operator, ALUOperation::ADC | ALUOperation::SBC) {
-                    status.set_overflow(self.carry ^ status.get_carry());
+                match operator {
+                    ALUOperation::ADC => status.set_overflow((self.a ^ value) & (self.b ^ value) & 0b10000000 != 0),
+                    ALUOperation::SBC => status.set_overflow((self.a ^ value) & (!self.b ^ value) & 0b10000000 != 0),
+                    _ => {}
                 }
 
                 status.set_negative(value & 0b10000000 != 0);
