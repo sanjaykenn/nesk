@@ -45,8 +45,8 @@ const ALU_OPERATIONS: [Option<ALUOperation>; 0x20] = [
     Some(ALUOperation::BIT), Some(ALUOperation::AND), Some(ALUOperation::ROL), None,
     None, Some(ALUOperation::EOR), Some(ALUOperation::LSR), None,
     None, Some(ALUOperation::ADC), Some(ALUOperation::ROR), None,
-    None, None, None, None,
-    None, None, None, None,
+    Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), None,
+    Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), None,
     Some(ALUOperation::CMP), Some(ALUOperation::CMP), Some(ALUOperation::DEC), None,
     Some(ALUOperation::SBC), Some(ALUOperation::SBC), Some(ALUOperation::INC), None
 ];

@@ -81,7 +81,6 @@ pub struct CPUInternal {
     fix_pch: bool,
     branch: bool,
     output: Option<TargetRegister>,
-    result: u8,
 }
 
 impl CPUInternal {
@@ -111,10 +110,11 @@ impl CPUInternal {
     pub fn tick(&mut self, memory: &mut dyn CPUMemory) {
         let buffer = self.read(memory);
 
-        if let Some(value) = self.alu.get_result(&mut self.registers.sr) {
-            self.result = value
-        } else if let Some(output) = self.output.take() {
-            self.set_register_value(output);
+        if let Some(value) = self.alu.get_output(&mut self.registers.sr) {
+            match self.output.take() {
+                None => self.latch = value,
+                Some(output) => self.set_register_value(output, value)
+            }
         }
 
         self.state = self.next(buffer);
@@ -312,9 +312,7 @@ impl CPUInternal {
             }
             CPUState::DummyWrite => CPUState::Write,
             CPUState::Write => {
-                if self.registers.ir.is_read() {
-                    self.latch = self.result;
-                } else {
+                if !self.registers.ir.is_read() {
                     self.latch = self.get_register_value(self.registers.ir.get_input());
                 }
                 CPUState::FetchInstruction
@@ -359,7 +357,7 @@ impl CPUInternal {
             CPUState::PushRegister(target) => { self.latch = self.get_register_value(target); CPUState::FetchInstruction },
             CPUState::PullRegister(cycle, target) => match cycle {
                 0 => CPUState::PullRegister(1, target),
-                1 => { self.set_register_value(target); CPUState::FetchInstruction}
+                1 => { self.set_register_value(target, self.latch); CPUState::FetchInstruction}
                 _ => unreachable!("Invalid cycle for pull register"),
             },
         }
@@ -417,35 +415,21 @@ impl CPUInternal {
         }
     }
 
-    fn set_register_value(&mut self, target: TargetRegister) {
+    fn set_register_value(&mut self, target: TargetRegister, value: u8) {
         match target {
-            TargetRegister::A => self.registers.a = self.result,
-            TargetRegister::X => self.registers.x = self.result,
-            TargetRegister::Y => self.registers.y = self.result,
-            TargetRegister::SP => self.registers.sp = self.result,
+            TargetRegister::A => self.registers.a = value,
+            TargetRegister::X => self.registers.x = value,
+            TargetRegister::Y => self.registers.y = value,
+            TargetRegister::SP => self.registers.sp = value,
         }
     }
 
     fn load_alu(&mut self, a: u8, buffer: u8) -> CPUState {
-        self.output = Some(self.registers.ir.get_output());
-        match self.registers.ir.get_alu_operation() {
-            None => self.result = buffer,
-            Some(operation) => {
-                if matches!(operation, ALUOperation::BIT | ALUOperation::CMP) {
-                    self.output = None
-                }
-
-                self.alu.set(a, buffer, operation)
-            },
-        }
-
-        CPUState::FetchInstruction
+        self.load_alu_operation(a, buffer, self.registers.ir.get_alu_operation().unwrap(), self.registers.ir.get_output())
     }
 
     fn setup_transfer(&mut self, input: TargetRegister, output: TargetRegister) -> CPUState {
-        self.result = self.get_register_value(input);
-        self.output = Some(output);
-        CPUState::FetchInstruction
+        self.load_alu_operation(0, self.get_register_value(input), ALUOperation::LOAD, output)
     }
 
     fn load_alu_operation(&mut self, a: u8, buffer: u8, operation: ALUOperation, output: TargetRegister) -> CPUState {
