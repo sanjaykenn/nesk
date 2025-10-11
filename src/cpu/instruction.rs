@@ -41,10 +41,14 @@ const ADDRESS_TABLE: [AddressingMode; 0x20] = [
 ];
 
 const ALU_OPERATIONS: [Option<ALUOperation>; 0x20] = [
-    None, Some(ALUOperation::BIT), None, None, None, None, Some(ALUOperation::CMP), Some(ALUOperation::SBC),
-    Some(ALUOperation::OR), Some(ALUOperation::AND), Some(ALUOperation::EOR), Some(ALUOperation::ADC), None, None, Some(ALUOperation::CMP), Some(ALUOperation::SBC),
-    Some(ALUOperation::ASL), Some(ALUOperation::ROL), Some(ALUOperation::LSR), Some(ALUOperation::ROR), None, None, Some(ALUOperation::DEC), Some(ALUOperation::INC),
-    None, None, None, None, None, None, None, None,
+    None, Some(ALUOperation::OR), Some(ALUOperation::ASL), None,
+    Some(ALUOperation::BIT), Some(ALUOperation::AND), Some(ALUOperation::ROL), None,
+    None, Some(ALUOperation::EOR), Some(ALUOperation::LSR), None,
+    None, Some(ALUOperation::ADC), Some(ALUOperation::ROR), None,
+    None, None, None, None,
+    None, None, None, None,
+    Some(ALUOperation::CMP), Some(ALUOperation::CMP), Some(ALUOperation::DEC), None,
+    Some(ALUOperation::SBC), Some(ALUOperation::SBC), Some(ALUOperation::INC), None
 ];
 
 pub struct Instruction(u8);
@@ -76,7 +80,7 @@ impl Instruction {
     }
 
     pub fn get_alu_operation(&self) -> Option<ALUOperation> {
-        let index = (self.get_opcode() >> 1) & 0xFA | self.get_opcode() & 0b11;
+        let index = (self.get_opcode() >> 3) & 0x1C | self.get_opcode() & 0b11;
         ALU_OPERATIONS[index as usize]
     }
 
