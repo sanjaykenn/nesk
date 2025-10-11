@@ -124,10 +124,10 @@ impl CPUInternal {
 
     fn read(&mut self, memory: &mut dyn CPUMemory) -> u8 {
         match self.state {
-            CPUState::JumpAbsolute | CPUState::JumpIndirect(0) | CPUState::IndexedRead(_)
+            CPUState::JumpIndirect(0) | CPUState::IndexedRead(_)
             | CPUState::Indirect(_, _) | CPUState::DummyRead | CPUState::Read => memory.read(self.get_pc()),
             CPUState::FetchInstruction | CPUState::FetchOperand | CPUState::FetchOperandHigh(_)
-            | CPUState::JumpIndirect(_) | CPUState::ReturnSubroutine(3) | CPUState::JumpSubroutine(3) => memory.read(self.registers.pc),
+            | CPUState::JumpAbsolute | CPUState::JumpIndirect(_) | CPUState::ReturnSubroutine(3) | CPUState::JumpSubroutine(3) => memory.read(self.registers.pc),
             CPUState::Break(3) => memory.read(0xFFFE),
             CPUState::Break(4) =>  memory.read(0xFFFF),
             CPUState::ReturnInterrupt(0) | CPUState::ReturnInterrupt(1) | CPUState::ReturnInterrupt(2)
