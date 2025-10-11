@@ -8,7 +8,8 @@ pub enum TargetRegister {
     A,
     X,
     Y,
-    SP
+    SR,
+    SP,
 }
 
 #[derive(Clone, Copy)]
@@ -89,6 +90,7 @@ impl Instruction {
         match self.get_opcode() {
             0xEB | 0xE0 | 0xE4 | 0xEC | 0x86 | 0x96 | 0x8E | 0x8A | 0x9A | 0xCA => TargetRegister::X,
             0xE8 | 0xC0 | 0xC4 | 0xCC | 0x84 | 0x94 | 0x8C => TargetRegister::Y,
+            0x08 => TargetRegister::SR,
             0xBA => TargetRegister::SP,
             _ => TargetRegister::A,
         }
@@ -98,6 +100,7 @@ impl Instruction {
         match self.get_opcode() {
             0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE | 0xAA | 0xBA | 0xCA => TargetRegister::X,
             0xA0 | 0xA4 | 0xB4 | 0xAC | 0xBC => TargetRegister::Y,
+            0x28 => TargetRegister::SR,
             0x9A => TargetRegister::SP,
             _ => TargetRegister::A,
         }

@@ -414,6 +414,7 @@ impl CPUInternal {
             TargetRegister::A => self.registers.a,
             TargetRegister::X => self.registers.x,
             TargetRegister::Y => self.registers.y,
+            TargetRegister::SR => self.registers.sr.get(),
             TargetRegister::SP => self.registers.sp,
         }
     }
@@ -423,6 +424,7 @@ impl CPUInternal {
             TargetRegister::A => self.registers.a = value,
             TargetRegister::X => self.registers.x = value,
             TargetRegister::Y => self.registers.y = value,
+            TargetRegister::SR => self.registers.sr.set(value),
             TargetRegister::SP => self.registers.sp = value,
         }
     }
