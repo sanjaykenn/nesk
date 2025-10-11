@@ -103,7 +103,6 @@ impl CPUInternal {
             fix_pch: false,
             branch: false,
             output: None,
-            result: 0,
         }
     }
     
@@ -334,8 +333,8 @@ impl CPUInternal {
             },
             CPUState::JumpSubroutine(cycle) => match cycle {
                 0 => CPUState::JumpSubroutine(1),
-                1 => { self.latch = self.registers.get_pch(); CPUState::JumpSubroutine(1) },
-                2 => { self.latch = self.registers.get_pcl(); CPUState::JumpSubroutine(2) },
+                1 => { self.latch = self.registers.get_pch(); CPUState::JumpSubroutine(2) },
+                2 => { self.latch = self.registers.get_pcl(); CPUState::JumpSubroutine(3) },
                 3 => {
                     self.registers.set_pcl(self.pcl);
                     self.registers.set_pch(buffer);
@@ -351,9 +350,9 @@ impl CPUInternal {
                 _ => unreachable!("Invalid cycle for return from interrupt"),
             }
             CPUState::ReturnSubroutine(cycle) => match cycle {
-                0 => CPUState::ReturnInterrupt(1),
-                1 => { self.registers.set_pcl(buffer); CPUState::ReturnInterrupt(2) },
-                2 => { self.registers.set_pch(buffer); CPUState::ReturnInterrupt(3) },
+                0 => CPUState::ReturnSubroutine(1),
+                1 => { self.registers.set_pcl(buffer); CPUState::ReturnSubroutine(2) },
+                2 => { self.registers.set_pch(buffer); CPUState::ReturnSubroutine(3) },
                 3 => { self.registers.increment_pc(); CPUState::FetchInstruction },
                 _ => unreachable!("Invalid cycle for return from interrupt"),
             }
