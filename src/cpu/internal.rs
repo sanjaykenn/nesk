@@ -252,10 +252,10 @@ impl CPUInternal {
                 _ => unreachable!("Invalid cycle for jump indirect"),
             }
             CPUState::IndexedRead(index) => {
-                self.pcl += match index {
+                self.pcl = self.pcl.wrapping_add(match index {
                     IndexMode::X => self.registers.x,
                     IndexMode::Y => self.registers.y,
-                };
+                });
                 self.read_or_write_state()
             }
             CPUState::FetchOperandHigh(index) => {
