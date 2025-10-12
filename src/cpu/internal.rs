@@ -111,8 +111,18 @@ impl CPUInternal {
 
         if let Some(value) = self.alu.get_output(&mut self.registers.sr) {
             match self.output.take() {
-                None => self.latch = value,
-                Some(output) => self.set_register_value(output, value)
+                Some(TargetRegister::SR) => self.set_register_value(TargetRegister::SR, value),
+                Some(TargetRegister::SP) => self.set_register_value(TargetRegister::SP, value),
+                None => {
+                    self.registers.sr.set_negative(value & 0b10000000 != 0);
+                    self.registers.sr.set_zero(value == 0);
+                    self.latch = value
+                },
+                Some(output) => {
+                    self.registers.sr.set_negative(value & 0b10000000 != 0);
+                    self.registers.sr.set_zero(value == 0);
+                    self.set_register_value(output, value)
+                }
             }
         }
 

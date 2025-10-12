@@ -38,11 +38,11 @@ impl ALU {
                     _ => {}
                 }
 
-                status.set_negative(value & 0b10000000 != 0);
-                status.set_zero(value == 0);
                 status.set_carry(self.carry);
 
                 if matches!(operator, ALUOperation::CMP) {
+                    status.set_negative(value & 0b10000000 != 0);
+                    status.set_zero(value == 0);
                     None
                 } else {
                     Some(value)
@@ -54,8 +54,6 @@ impl ALU {
     fn compute_operation(&mut self, operation: ALUOperation, status: &mut StatusRegister) -> Option<u8> {
         match operation {
             ALUOperation::LOAD => {
-                status.set_negative(self.b & 0b10000000 != 0);
-                status.set_zero(self.b == 0);
                 self.operator = None;
                 return Some(self.b);
             }
