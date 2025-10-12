@@ -68,7 +68,7 @@ impl Instruction {
     }
 
     pub fn is_write(&self) -> bool {
-        self.get_opcode() & 0b11 == 0b11 || self.get_opcode() & 0b110 == 0b110 || self.get_opcode() & 0b11100000 == 0b10000000
+        (self.get_opcode() & 0b11 == 0b11 || self.get_opcode() & 0b110 == 0b110 || self.get_opcode() & 0b11100000 == 0b10000000) && self.get_opcode() & 0b11100000 != 0b10100000
     }
 
     pub fn get_addressing_mode(&self) -> AddressingMode {
