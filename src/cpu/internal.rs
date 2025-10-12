@@ -368,7 +368,7 @@ impl CPUInternal {
 
     fn implied_instructions(&mut self) -> CPUState {
         match self.registers.ir.get_opcode() {
-            0x00 => return CPUState::Break(0),
+            0x00 => { self.registers.increment_pc(); return CPUState::Break(0) },
             0x20 => return CPUState::JumpSubroutine(0),
             0x40 => return CPUState::ReturnInterrupt(0),
             0x60 => return CPUState::ReturnSubroutine(0),
