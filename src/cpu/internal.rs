@@ -293,7 +293,7 @@ impl CPUInternal {
                     match index {
                         IndexMode::X => self.read_or_write_state(),
                         IndexMode::Y => {
-                            self.pcl = self.pcl.wrapping_add(self.registers.y);
+                            (self.pcl, self.fix_pch) = self.pcl.overflowing_add(self.registers.y);
                             if self.registers.ir.is_write() {
                                 CPUState::DummyRead
                             } else {
