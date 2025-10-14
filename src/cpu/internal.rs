@@ -278,7 +278,7 @@ impl CPUInternal {
             }
             CPUState::Indirect(cycle, index) => match cycle {
                 0 => {
-                    self.pcl = buffer.wrapping_add(self.registers.x);
+                    self.pcl = self.pcl.wrapping_add(self.registers.x);
                     CPUState::Indirect(1, index)
                 }
                 1 => {
