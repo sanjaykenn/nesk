@@ -6,6 +6,7 @@ mod internal;
 mod status;
 mod cpu;
 mod registers;
+mod state;
 
 pub struct CPU {
     internal: CPUInternal
