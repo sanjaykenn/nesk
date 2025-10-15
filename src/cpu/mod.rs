@@ -5,6 +5,7 @@ mod instruction;
 mod internal;
 mod status;
 mod cpu;
+mod registers;
 
 pub struct CPU {
     internal: CPUInternal
