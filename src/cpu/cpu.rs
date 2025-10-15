@@ -1,4 +1,4 @@
-use crate::cpu::alu::{ALUOperation, ALU};
+use crate::cpu::operations::{Operations, OperationUnit};
 use crate::cpu::{CPUMemory, CPU};
 use crate::cpu::instruction::{AddressingMode, IndexMode, Instruction, TargetRegister};
 use crate::cpu::registers::Registers;
@@ -9,7 +9,7 @@ impl CPU {
         Self {
             state: CPUState::FetchInstruction,
             registers: Registers::new(),
-            alu: ALU::new(),
+            operation_unit: OperationUnit::new(),
             low: 0,
             high: 0,
             value: 0,
@@ -22,7 +22,7 @@ impl CPU {
     pub fn tick(&mut self, memory: &mut dyn CPUMemory) {
         let buffer = self.read(memory);
 
-        if let Some(value) = self.alu.get_output(&mut self.registers.status) {
+        if let Some(value) = self.operation_unit.get_output(&mut self.registers.status) {
             match self.output.take() {
                 Some(TargetRegister::SR) => self.set_register_value(TargetRegister::SR, value),
                 Some(TargetRegister::SP) => self.set_register_value(TargetRegister::SP, value),
@@ -110,7 +110,7 @@ impl CPU {
 
                 match self.registers.instruction.get_addressing_mode() {
                     AddressingMode::Implied => self.implied_instructions(),
-                    AddressingMode::Immediate => self.load_alu(self.get_register_value(self.registers.instruction.get_input()), buffer),
+                    AddressingMode::Immediate => self.load_operation(self.get_register_value(self.registers.instruction.get_input()), buffer),
                     AddressingMode::Branch => {
                         self.value = buffer;
                         self.branch = self.registers.instruction.branch(&self.registers.status);
@@ -219,7 +219,7 @@ impl CPU {
                     return CPUState::Read
                 }
 
-                self.load_alu(self.get_register_value(self.registers.instruction.get_input()), buffer);
+                self.load_operation(self.get_register_value(self.registers.instruction.get_input()), buffer);
                 if self.registers.instruction.is_write() {
                     self.value = buffer;
                     self.output = None;
@@ -284,7 +284,7 @@ impl CPU {
             CPUState::PullRegister(1, TargetRegister::SR) => { self.set_register_value(TargetRegister::SR, buffer); CPUState::FetchInstruction },
             CPUState::PullRegister(cycle, target) => match cycle {
                 0 => CPUState::PullRegister(1, target),
-                1 => self.load_alu_operation(0, buffer, ALUOperation::LOAD, target),
+                1 => self.set_operation(0, buffer, Operations::LOAD, target),
                 _ => unreachable!("Invalid cycle for pull register"),
             },
         }
@@ -302,16 +302,16 @@ impl CPU {
             0x38 => self.registers.status.set_carry(true),
             0x58 => self.registers.status.set_interrupt(false),
             0x78 => self.registers.status.set_interrupt(true),
-            0x88 => return self.load_alu_operation(0, self.registers.y, ALUOperation::DEC, TargetRegister::Y),
+            0x88 => return self.set_operation(0, self.registers.y, Operations::DEC, TargetRegister::Y),
             0x98 => return self.setup_transfer(TargetRegister::Y, TargetRegister::A),
             0xA8 => return self.setup_transfer(TargetRegister::A, TargetRegister::Y),
             0xB8 => self.registers.status.set_overflow(false),
-            0xC8 => return self.load_alu_operation(0, self.registers.y, ALUOperation::INC, TargetRegister::Y),
+            0xC8 => return self.set_operation(0, self.registers.y, Operations::INC, TargetRegister::Y),
             0xD8 => self.registers.status.set_decimal(false),
-            0xE8 => return self.load_alu_operation(0, self.registers.x, ALUOperation::INC, TargetRegister::X),
+            0xE8 => return self.set_operation(0, self.registers.x, Operations::INC, TargetRegister::X),
             0xF8 => self.registers.status.set_decimal(true),
             0xEA => {},
-            _ => return self.load_alu(0, self.get_register_value(self.registers.instruction.get_input())),
+            _ => return self.load_operation(0, self.get_register_value(self.registers.instruction.get_input())),
         }
 
         CPUState::FetchInstruction
@@ -350,16 +350,16 @@ impl CPU {
         }
     }
 
-    fn load_alu(&mut self, a: u8, buffer: u8) -> CPUState {
-        self.load_alu_operation(a, buffer, self.registers.instruction.get_alu_operation().unwrap(), self.registers.instruction.get_output())
+    fn load_operation(&mut self, a: u8, buffer: u8) -> CPUState {
+        self.set_operation(a, buffer, self.registers.instruction.get_operation().unwrap(), self.registers.instruction.get_output())
     }
 
     fn setup_transfer(&mut self, input: TargetRegister, output: TargetRegister) -> CPUState {
-        self.load_alu_operation(0, self.get_register_value(input), ALUOperation::LOAD, output)
+        self.set_operation(0, self.get_register_value(input), Operations::LOAD, output)
     }
 
-    fn load_alu_operation(&mut self, a: u8, buffer: u8, operation: ALUOperation, output: TargetRegister) -> CPUState {
-        self.alu.set(a, buffer, operation);
+    fn set_operation(&mut self, a: u8, buffer: u8, operation: Operations, output: TargetRegister) -> CPUState {
+        self.operation_unit.set(a, buffer, operation);
         self.output = Some(output);
         CPUState::FetchInstruction
     }

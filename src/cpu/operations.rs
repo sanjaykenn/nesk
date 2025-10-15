@@ -1,24 +1,24 @@
 use crate::cpu::status::StatusRegister;
 
 #[derive(Clone, Copy)]
-pub enum ALUOperation {
+pub enum Operations {
     LOAD, OR, AND, EOR, ADC, SBC, CMP, ASL, ROL, LSR, ROR, INC, DEC, BIT
 }
 
-pub struct ALU {
+pub struct OperationUnit {
     a: u8,
     b: u8,
     carry: bool,
-    operator: Option<ALUOperation>,
+    operator: Option<Operations>,
     output: Option<u8>,
 }
 
-impl ALU {
+impl OperationUnit {
     pub fn new() -> Self {
         Self { a: 0, b: 0, carry: false, operator: None, output: None }
     }
 
-    pub fn set(&mut self, a: u8, b: u8, operator: ALUOperation) {
+    pub fn set(&mut self, a: u8, b: u8, operator: Operations) {
         self.a = a;
         self.b = b;
         self.operator = Some(operator);
@@ -33,14 +33,14 @@ impl ALU {
             Some(value) =>  {
                 let operator = self.operator.take().unwrap();
                 match operator {
-                    ALUOperation::ADC => status.set_overflow((self.a ^ value) & (self.b ^ value) & 0b10000000 != 0),
-                    ALUOperation::SBC => status.set_overflow((self.a ^ value) & (!self.b ^ value) & 0b10000000 != 0),
+                    Operations::ADC => status.set_overflow((self.a ^ value) & (self.b ^ value) & 0b10000000 != 0),
+                    Operations::SBC => status.set_overflow((self.a ^ value) & (!self.b ^ value) & 0b10000000 != 0),
                     _ => {}
                 }
 
                 status.set_carry(self.carry);
 
-                if matches!(operator, ALUOperation::CMP) {
+                if matches!(operator, Operations::CMP) {
                     status.set_negative(value & 0b10000000 != 0);
                     status.set_zero(value == 0);
                     None
@@ -51,13 +51,13 @@ impl ALU {
         }
     }
 
-    fn compute_operation(&mut self, operation: ALUOperation, status: &mut StatusRegister) -> Option<u8> {
+    fn compute_operation(&mut self, operation: Operations, status: &mut StatusRegister) -> Option<u8> {
         match operation {
-            ALUOperation::LOAD => {
+            Operations::LOAD => {
                 self.operator = None;
                 return Some(self.b);
             }
-            ALUOperation::BIT => {
+            Operations::BIT => {
                 status.set_negative(self.b & 0b10000000 != 0);
                 status.set_overflow(self.b & 0b01000000 != 0);
                 status.set_zero(self.a & self.b == 0);
@@ -69,19 +69,19 @@ impl ALU {
 
         let output;
         (output, self.carry) = match operation {
-            ALUOperation::OR => (self.a | self.b, status.get_carry()),
-            ALUOperation::AND => (self.a & self.b, status.get_carry()),
-            ALUOperation::EOR => (self.a ^ self.b, status.get_carry()),
-            ALUOperation::ADC => Self::adc(self.a, self.b, status),
-            ALUOperation::SBC => Self::adc(self.a, !self.b, status),
-            ALUOperation::CMP => (self.a.wrapping_sub(self.b), self.a >= self.b),
-            ALUOperation::ASL => (self.b << 1, self.b & 0b10000000 != 0),
-            ALUOperation::ROL => (self.b << 1 | status.get_carry() as u8, self.b & 0b10000000 != 0),
-            ALUOperation::LSR => (self.b >> 1, self.b & 1 != 0),
-            ALUOperation::ROR => (self.b >> 1 | (status.get_carry() as u8) << 7, self.b & 1 != 0),
-            ALUOperation::INC => (self.b.wrapping_add(1), status.get_carry()),
-            ALUOperation::DEC => (self.b.wrapping_sub(1), status.get_carry()),
-            ALUOperation::LOAD | ALUOperation::BIT => unreachable!("Invalid operation"),
+            Operations::OR => (self.a | self.b, status.get_carry()),
+            Operations::AND => (self.a & self.b, status.get_carry()),
+            Operations::EOR => (self.a ^ self.b, status.get_carry()),
+            Operations::ADC => Self::adc(self.a, self.b, status),
+            Operations::SBC => Self::adc(self.a, !self.b, status),
+            Operations::CMP => (self.a.wrapping_sub(self.b), self.a >= self.b),
+            Operations::ASL => (self.b << 1, self.b & 0b10000000 != 0),
+            Operations::ROL => (self.b << 1 | status.get_carry() as u8, self.b & 0b10000000 != 0),
+            Operations::LSR => (self.b >> 1, self.b & 1 != 0),
+            Operations::ROR => (self.b >> 1 | (status.get_carry() as u8) << 7, self.b & 1 != 0),
+            Operations::INC => (self.b.wrapping_add(1), status.get_carry()),
+            Operations::DEC => (self.b.wrapping_sub(1), status.get_carry()),
+            Operations::LOAD | Operations::BIT => unreachable!("Invalid operation"),
         };
 
         self.output = Some(output);

@@ -1,4 +1,4 @@
-use crate::cpu::alu::ALUOperation;
+use crate::cpu::operations::Operations;
 use crate::cpu::instruction::AddressingMode::*;
 use crate::cpu::instruction::IndexMode::*;
 use crate::cpu::status::StatusRegister;
@@ -41,15 +41,15 @@ const ADDRESS_TABLE: [AddressingMode; 0x20] = [
     AbsoluteIndexed(X), AbsoluteIndexed(X), AbsoluteIndexed(X), AbsoluteIndexed(X),
 ];
 
-const ALU_OPERATIONS: [Option<ALUOperation>; 0x20] = [
-    None, Some(ALUOperation::OR), Some(ALUOperation::ASL), None,
-    Some(ALUOperation::BIT), Some(ALUOperation::AND), Some(ALUOperation::ROL), None,
-    None, Some(ALUOperation::EOR), Some(ALUOperation::LSR), None,
-    None, Some(ALUOperation::ADC), Some(ALUOperation::ROR), None,
-    Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), None,
-    Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), Some(ALUOperation::LOAD), None,
-    Some(ALUOperation::CMP), Some(ALUOperation::CMP), Some(ALUOperation::DEC), None,
-    Some(ALUOperation::CMP), Some(ALUOperation::SBC), Some(ALUOperation::INC), None
+const OPERATIONS: [Option<Operations>; 0x20] = [
+    None, Some(Operations::OR), Some(Operations::ASL), None,
+    Some(Operations::BIT), Some(Operations::AND), Some(Operations::ROL), None,
+    None, Some(Operations::EOR), Some(Operations::LSR), None,
+    None, Some(Operations::ADC), Some(Operations::ROR), None,
+    Some(Operations::LOAD), Some(Operations::LOAD), Some(Operations::LOAD), None,
+    Some(Operations::LOAD), Some(Operations::LOAD), Some(Operations::LOAD), None,
+    Some(Operations::CMP), Some(Operations::CMP), Some(Operations::DEC), None,
+    Some(Operations::CMP), Some(Operations::SBC), Some(Operations::INC), None
 ];
 
 pub struct Instruction(u8);
@@ -81,9 +81,9 @@ impl Instruction {
         }
     }
 
-    pub fn get_alu_operation(&self) -> Option<ALUOperation> {
+    pub fn get_operation(&self) -> Option<Operations> {
         let index = (self.get_opcode() >> 3) & 0x1C | self.get_opcode() & 0b11;
-        ALU_OPERATIONS[index as usize]
+        OPERATIONS[index as usize]
     }
 
     pub fn get_input(&self) -> TargetRegister {

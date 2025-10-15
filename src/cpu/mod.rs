@@ -1,9 +1,9 @@
-use crate::cpu::alu::ALU;
+use crate::cpu::operations::OperationUnit;
 use crate::cpu::instruction::TargetRegister;
 use crate::cpu::registers::Registers;
 use crate::cpu::state::CPUState;
 
-mod alu;
+mod operations;
 mod instruction;
 mod status;
 mod cpu;
@@ -13,7 +13,7 @@ mod state;
 pub struct CPU {
     state: CPUState,
     registers: Registers,
-    alu: ALU,
+    operation_unit: OperationUnit,
     low: u8,
     high: u8,
     value: u8,
