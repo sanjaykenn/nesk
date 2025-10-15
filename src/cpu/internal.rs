@@ -161,7 +161,7 @@ impl CPUInternal {
                 }
                 1 => {
                     self.latch = buffer;
-                    self.increment_pcl();
+                    self.increase_pcl(1);
                     CPUState::JumpIndirect(2)
                 }
                 2 => {
@@ -171,10 +171,7 @@ impl CPUInternal {
                 _ => unreachable!("Invalid cycle for jump indirect"),
             }
             CPUState::IndexedRead(index) => {
-                self.pcl = self.pcl.wrapping_add(match index {
-                    IndexMode::X => self.registers.x,
-                    IndexMode::Y => self.registers.y,
-                });
+                self.increase_pcl(self.get_index_value(index));
                 self.read_or_write_state()
             }
             CPUState::FetchOperandHigh(index) => {
@@ -183,10 +180,7 @@ impl CPUInternal {
                 match index {
                     None => self.read_or_write_state(),
                     Some(index) => {
-                        (self.pcl, self.fix_pch) = self.pcl.overflowing_add(match index {
-                            IndexMode::X => self.registers.x,
-                            IndexMode::Y => self.registers.y,
-                        });
+                        self.fix_pch = self.increase_pcl(self.get_index_value(index));
                         if self.registers.instruction.is_write() {
                             CPUState::DummyRead
                         } else {
@@ -202,7 +196,7 @@ impl CPUInternal {
                 }
                 1 => {
                     self.latch = buffer;
-                    self.increment_pcl();
+                    self.increase_pcl(1);
                     CPUState::Indirect(2, index)
                 }
                 2 => {
@@ -212,7 +206,7 @@ impl CPUInternal {
                     match index {
                         IndexMode::X => self.read_or_write_state(),
                         IndexMode::Y => {
-                            (self.pcl, self.fix_pch) = self.pcl.overflowing_add(self.registers.y);
+                            self.fix_pch = self.increase_pcl(self.registers.y);
                             if self.registers.instruction.is_write() {
                                 CPUState::DummyRead
                             } else {
@@ -224,11 +218,16 @@ impl CPUInternal {
                 _ => unreachable!("Invalid cycle for read indirect"),
             }
             CPUState::DummyRead => {
-                self.fix_pch();
+                if self.fix_pch {
+                    self.fix_pch = false;
+                    self.pch = self.pch.wrapping_add(1);
+                }
                 self.read_or_write_state()
             }
             CPUState::Read => {
-                if self.fix_pch() {
+                if self.fix_pch {
+                    self.fix_pch = false;
+                    self.pch = self.pch.wrapping_add(1);
                     return CPUState::Read
                 }
 
@@ -330,20 +329,17 @@ impl CPUInternal {
         CPUState::FetchInstruction
     }
 
-    fn increment_pcl(&mut self) -> bool {
+    fn increase_pcl(&mut self, value: u8) -> bool {
         let overflow;
-        (self.pcl, overflow) = self.pcl.overflowing_add(1);
+        (self.pcl, overflow) = self.pcl.overflowing_add(value);
         overflow
     }
 
-    fn fix_pch(&mut self) -> bool {
-        if self.fix_pch {
-            self.fix_pch = false;
-            self.pch = self.pch.wrapping_add(1);
-            return true
+    fn get_index_value(&self, index: IndexMode) -> u8 {
+        match index {
+            IndexMode::X => self.registers.x,
+            IndexMode::Y => self.registers.y,
         }
-
-        false
     }
 
     fn get_register_value(&self, target: TargetRegister) -> u8 {
