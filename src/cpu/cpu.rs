@@ -10,9 +10,9 @@ impl CPU {
             state: CPUState::FetchInstruction,
             registers: Registers::new(),
             alu: ALU::new(),
-            pcl: 0,
-            pch: 0,
-            latch: 0,
+            low: 0,
+            high: 0,
+            value: 0,
             fix_pch: false,
             branch: false,
             output: None,
@@ -29,7 +29,7 @@ impl CPU {
                 None => {
                     self.registers.status.set_negative(value & 0b10000000 != 0);
                     self.registers.status.set_zero(value == 0);
-                    self.latch = value
+                    self.value = value
                 },
                 Some(output) => {
                     self.registers.status.set_negative(value & 0b10000000 != 0);
@@ -49,7 +49,7 @@ impl CPU {
     fn read(&mut self, memory: &mut dyn CPUMemory) -> u8 {
         match &self.state.get_mode() {
             CycleMode::Fetch => memory.read(self.registers.program_counter),
-            CycleMode::Read => memory.read(self.get_pc()),
+            CycleMode::Read => memory.read(self.get_address()),
             CycleMode::Pop => self.pop_stack(memory),
             CycleMode::Peak => self.peak_stack(memory),
             _ => 0
@@ -58,8 +58,8 @@ impl CPU {
 
     fn write(&mut self, memory: &mut dyn CPUMemory) {
         match self.state.get_mode() {
-            CycleMode::Write => memory.write(self.get_pc(), self.latch),
-            CycleMode::Push => self.push_to_stack(memory, self.latch),
+            CycleMode::Write => memory.write(self.get_address(), self.value),
+            CycleMode::Push => self.push_to_stack(memory, self.value),
             _ => {}
         }
     }
@@ -84,8 +84,8 @@ impl CPU {
             CPUState::FetchInstruction => {
                 if self.branch {
                     let pcl;
-                    (pcl, self.fix_pch) = self.registers.get_pcl().overflowing_add(self.latch);
-                    self.fix_pch ^= self.latch >= 0x80;
+                    (pcl, self.fix_pch) = self.registers.get_pcl().overflowing_add(self.value);
+                    self.fix_pch ^= self.value >= 0x80;
                     self.registers.set_pcl(pcl);
                     self.branch = false;
                     CPUState::FetchInstruction
@@ -112,13 +112,13 @@ impl CPU {
                     AddressingMode::Implied => self.implied_instructions(),
                     AddressingMode::Immediate => self.load_alu(self.get_register_value(self.registers.instruction.get_input()), buffer),
                     AddressingMode::Branch => {
-                        self.latch = buffer;
+                        self.value = buffer;
                         self.branch = self.registers.instruction.branch(&self.registers.status);
                         CPUState::FetchInstruction
                     }
                     addressing_mode => {
-                        self.pcl = buffer;
-                        self.pch = 0;
+                        self.low = buffer;
+                        self.high = 0;
                         match self.registers.instruction.get_opcode() {
                             0x4C => CPUState::JumpAbsolute,
                             0x6C => CPUState::JumpIndirect(0),
@@ -139,36 +139,36 @@ impl CPU {
                 }
             }
             CPUState::JumpAbsolute => {
-                self.registers.set_pc(self.pcl, buffer);
+                self.registers.set_pc(self.low, buffer);
                 CPUState::FetchInstruction
             }
             CPUState::JumpIndirect(cycle) => match cycle {
                 0 => {
-                    self.pch = buffer;
+                    self.high = buffer;
                     CPUState::JumpIndirect(1)
                 }
                 1 => {
-                    self.latch = buffer;
-                    self.increase_pcl(1);
+                    self.value = buffer;
+                    self.increase_low(1);
                     CPUState::JumpIndirect(2)
                 }
                 2 => {
-                    self.registers.set_pc(self.latch, buffer);
+                    self.registers.set_pc(self.value, buffer);
                     CPUState::FetchInstruction
                 }
                 _ => unreachable!("Invalid cycle for jump indirect"),
             }
             CPUState::IndexedRead(index) => {
-                self.increase_pcl(self.get_index_value(index));
+                self.increase_low(self.get_index_value(index));
                 self.read_or_write_state()
             }
             CPUState::FetchOperandHigh(index) => {
                 self.registers.increment_pc();
-                self.pch = buffer;
+                self.high = buffer;
                 match index {
                     None => self.read_or_write_state(),
                     Some(index) => {
-                        self.fix_pch = self.increase_pcl(self.get_index_value(index));
+                        self.fix_pch = self.increase_low(self.get_index_value(index));
                         if self.registers.instruction.is_write() {
                             CPUState::DummyRead
                         } else {
@@ -179,22 +179,22 @@ impl CPU {
             }
             CPUState::Indirect(cycle, index) => match cycle {
                 0 => {
-                    self.pcl = self.pcl.wrapping_add(self.registers.x);
+                    self.low = self.low.wrapping_add(self.registers.x);
                     CPUState::Indirect(1, index)
                 }
                 1 => {
-                    self.latch = buffer;
-                    self.increase_pcl(1);
+                    self.value = buffer;
+                    self.increase_low(1);
                     CPUState::Indirect(2, index)
                 }
                 2 => {
-                    self.pch = buffer;
-                    self.pcl = self.latch;
+                    self.high = buffer;
+                    self.low = self.value;
 
                     match index {
                         IndexMode::X => self.read_or_write_state(),
                         IndexMode::Y => {
-                            self.fix_pch = self.increase_pcl(self.registers.y);
+                            self.fix_pch = self.increase_low(self.registers.y);
                             if self.registers.instruction.is_write() {
                                 CPUState::DummyRead
                             } else {
@@ -208,20 +208,20 @@ impl CPU {
             CPUState::DummyRead => {
                 if self.fix_pch {
                     self.fix_pch = false;
-                    self.pch = self.pch.wrapping_add(1);
+                    self.high = self.high.wrapping_add(1);
                 }
                 self.read_or_write_state()
             }
             CPUState::Read => {
                 if self.fix_pch {
                     self.fix_pch = false;
-                    self.pch = self.pch.wrapping_add(1);
+                    self.high = self.high.wrapping_add(1);
                     return CPUState::Read
                 }
 
                 self.load_alu(self.get_register_value(self.registers.instruction.get_input()), buffer);
                 if self.registers.instruction.is_write() {
-                    self.latch = buffer;
+                    self.value = buffer;
                     self.output = None;
                     CPUState::DummyWrite
                 } else {
@@ -231,21 +231,21 @@ impl CPU {
             CPUState::DummyWrite => CPUState::Write,
             CPUState::Write => {
                 if !self.registers.instruction.is_read() {
-                    self.latch = self.get_register_value(self.registers.instruction.get_input());
+                    self.value = self.get_register_value(self.registers.instruction.get_input());
                 }
                 CPUState::FetchInstruction
             }
             CPUState::Break(cycle) => match cycle {
-                0 => { self.latch = self.registers.get_pch(); CPUState::Break(1) },
-                1 => { self.latch = self.registers.get_pcl(); CPUState::Break(2) },
+                0 => { self.value = self.registers.get_pch(); CPUState::Break(1) },
+                1 => { self.value = self.registers.get_pcl(); CPUState::Break(2) },
                 2 => {
-                    self.pcl = 0xFE;
-                    self.pch = 0xFF;
-                    self.latch = self.registers.status.get(); CPUState::Break(3)
+                    self.low = 0xFE;
+                    self.high = 0xFF;
+                    self.value = self.registers.status.get(); CPUState::Break(3)
                 },
                 3 => {
-                    self.pcl = 0xFF;
-                    self.pch = 0xFF;
+                    self.low = 0xFF;
+                    self.high = 0xFF;
                     self.registers.set_pcl(buffer); CPUState::Break(4)
                 },
                 4 => {
@@ -257,10 +257,10 @@ impl CPU {
             },
             CPUState::JumpSubroutine(cycle) => match cycle {
                 0 => CPUState::JumpSubroutine(1),
-                1 => { self.latch = self.registers.get_pch(); CPUState::JumpSubroutine(2) },
-                2 => { self.latch = self.registers.get_pcl(); CPUState::JumpSubroutine(3) },
+                1 => { self.value = self.registers.get_pch(); CPUState::JumpSubroutine(2) },
+                2 => { self.value = self.registers.get_pcl(); CPUState::JumpSubroutine(3) },
                 3 => {
-                    self.registers.set_pcl(self.pcl);
+                    self.registers.set_pcl(self.low);
                     self.registers.set_pch(buffer);
                     CPUState::FetchInstruction
                 },
@@ -280,7 +280,7 @@ impl CPU {
                 3 => { self.registers.increment_pc(); CPUState::FetchInstruction },
                 _ => unreachable!("Invalid cycle for return from interrupt"),
             }
-            CPUState::PushRegister(target) => { self.latch = self.get_register_value(target); CPUState::FetchInstruction },
+            CPUState::PushRegister(target) => { self.value = self.get_register_value(target); CPUState::FetchInstruction },
             CPUState::PullRegister(1, TargetRegister::SR) => { self.set_register_value(TargetRegister::SR, buffer); CPUState::FetchInstruction },
             CPUState::PullRegister(cycle, target) => match cycle {
                 0 => CPUState::PullRegister(1, target),
@@ -317,9 +317,9 @@ impl CPU {
         CPUState::FetchInstruction
     }
 
-    fn increase_pcl(&mut self, value: u8) -> bool {
+    fn increase_low(&mut self, value: u8) -> bool {
         let overflow;
-        (self.pcl, overflow) = self.pcl.overflowing_add(value);
+        (self.low, overflow) = self.low.overflowing_add(value);
         overflow
     }
 
@@ -374,7 +374,7 @@ impl CPU {
         }
     }
 
-    fn get_pc(&self) -> u16 {
-        self.pcl as u16 | (self.pch as u16) << 8
+    fn get_address(&self) -> u16 {
+        self.low as u16 | (self.high as u16) << 8
     }
 }
