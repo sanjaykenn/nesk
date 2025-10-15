@@ -1,15 +1,25 @@
-use crate::cpu::internal::CPUInternal;
+use crate::cpu::alu::ALU;
+use crate::cpu::instruction::TargetRegister;
+use crate::cpu::registers::Registers;
+use crate::cpu::state::CPUState;
 
 mod alu;
 mod instruction;
-mod internal;
 mod status;
 mod cpu;
 mod registers;
 mod state;
 
 pub struct CPU {
-    internal: CPUInternal
+    state: CPUState,
+    registers: Registers,
+    alu: ALU,
+    pcl: u8,
+    pch: u8,
+    latch: u8,
+    fix_pch: bool,
+    branch: bool,
+    output: Option<TargetRegister>,
 }
 
 pub trait CPUMemory {
