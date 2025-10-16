@@ -51,4 +51,27 @@ impl Foreground {
             _ => {}
         }
     }
+
+    fn load_next_pixel(&mut self, memory: &mut dyn PPUMemory) -> (u8, u8, bool) {
+        if memory.get_registers().mask.get_show_sprites() {
+            for i in 0..self.sprite_x.len() {
+                if self.sprite_x[i] == 0 {
+                    let pixel = self.shifter_patterns_high[i] >> 6 & 2 |
+                        self.shifter_patterns_low[i] >> 7 & 1;
+
+                    if pixel != 0 {
+                        if i == 0 {
+                            self.show_sprite_zero = true;
+                        }
+
+                        let sprite_palette = self.sprite_attribute_bytes[i].get_palette();
+                        let sprite_priority = !self.sprite_attribute_bytes[i].get_priority();
+                        return (pixel, sprite_palette, sprite_priority);
+                    }
+                }
+            }
+        }
+
+        (0, 0, false)
+    }
 }
