@@ -2,6 +2,7 @@ use crate::ppu::registers::Registers;
 
 mod utils;
 mod registers;
+mod background;
 
 pub struct PPU {
 
