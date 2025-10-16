@@ -3,6 +3,7 @@ use crate::ppu::registers::Registers;
 mod utils;
 mod registers;
 mod background;
+mod memory;
 
 pub struct PPU {
 
