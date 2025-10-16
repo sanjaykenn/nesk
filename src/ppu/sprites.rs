@@ -1,4 +1,7 @@
 use crate::{bit_field, bit_range};
+use crate::ppu::PPUMemory;
+use crate::ppu::registers::Registers;
+use crate::ppu::utils::flip_byte;
 
 pub struct SpriteAttribute(u8);
 
@@ -72,5 +75,53 @@ impl Sprite {
 
     pub fn get_x(&self) -> u8 {
         self.x
+    }
+
+    fn get_pattern_table_index(&self, scanline: usize, registers: &Registers) -> (bool, u16, u16) {
+        let y_dif = (scanline as u16).checked_sub(self.get_y() as u16).unwrap_or_default();
+
+        if !registers.control.get_sprite_size() {
+            if !self.get_attribute().get_flip_vertical() {
+                (registers.control.get_sprite_pattern_table(), self.get_id() as u16, y_dif)
+            } else {
+                (registers.control.get_sprite_pattern_table(), self.get_id() as u16, 7 - y_dif)
+            }
+        } else {
+            if !self.get_attribute().get_flip_vertical() {
+                if y_dif < 8 {
+                    (self.get_id() & 0x01 != 0, self.get_id() as u16 & 0xFE, y_dif)
+                } else {
+                    (self.get_id() & 0x01 != 0, self.get_id() as u16 | 0x01, y_dif & 0x07)
+                }
+            } else {
+                if y_dif < 8 {
+                    (self.get_id() & 0x01 != 0, self.get_id() as u16 | 0x01, 7 - y_dif)
+                } else {
+                    (self.get_id() & 0x01 != 0, self.get_id() as u16 & 0xFE, 15 - y_dif)
+                }
+            }
+        }
+    }
+
+    pub fn get_pattern_low(&self, scanline: usize, memory: &mut dyn PPUMemory) -> u8 {
+        let (table, tile, y) = self.get_pattern_table_index(scanline, memory.get_registers());
+        let pattern = memory.read_pattern_table_tile_low(table, tile, y);
+
+        if self.get_attribute().get_flip_horizontal() {
+            flip_byte(pattern)
+        } else {
+            pattern
+        }
+    }
+
+    pub fn get_pattern_high(&self, scanline: usize, memory: &mut dyn PPUMemory) -> u8 {
+        let (table, tile, y) = self.get_pattern_table_index(scanline, memory.get_registers());
+        let pattern = memory.read_pattern_table_tile_high(table, tile, y);
+
+        if self.get_attribute().get_flip_horizontal() {
+            flip_byte(pattern)
+        } else {
+            pattern
+        }
     }
 }
