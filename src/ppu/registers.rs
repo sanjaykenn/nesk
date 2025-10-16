@@ -20,6 +20,19 @@ impl Registers {
             vram_address: VRAMAddress::new()
         }
     }
+
+    pub fn get_palette_from_attribute(&self, attribute: u8) -> u8 {
+        let mut palette = attribute;
+        if self.vram_address.get_tile_x() & 2 != 0 {
+            palette >>= 2
+        }
+
+        if self.vram_address.get_tile_y() & 2 != 0 {
+            palette >>= 4
+        }
+
+        palette & 3
+    }
 }
 
 pub struct Control(u8);

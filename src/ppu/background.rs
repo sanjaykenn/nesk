@@ -42,4 +42,44 @@ impl Background {
             self.shifter_attribute_high <<= 1;
         }
     }
+
+    fn load_tile(&mut self, cycle: i32, memory: &mut dyn PPUMemory) {
+        match cycle & 7 {
+            1 => {
+                if cycle >= 9 {
+                    self.load_shift_registers();
+                }
+
+                let address = memory.get_registers().vram_address.get();
+                self.pattern_table_tile = memory.read_nametable(address);
+            }
+            3 => {
+                let nametable = memory.get_registers().vram_address.get_nametable();
+                let attribute_index = memory.get_registers().vram_address.get_attribute_index();
+                let attribute = memory.read_attribute_table(nametable, attribute_index);
+                self.palette = memory.get_registers().get_palette_from_attribute(attribute)
+            }
+            5 => {
+                let background_pattern_table = memory.get_registers().control.get_background_pattern_table();
+                let fine_y = memory.get_registers().vram_address.get_fine_y();
+
+                self.pattern_table_tile_low = memory.read_pattern_table_tile_low(
+                    background_pattern_table,
+                    self.pattern_table_tile as u16,
+                    fine_y,
+                )
+            }
+            7 => {
+                let background_pattern_table = memory.get_registers().control.get_background_pattern_table();
+                let fine_y = memory.get_registers().vram_address.get_fine_y();
+
+                self.pattern_table_tile_high = memory.read_pattern_table_tile_high(
+                    background_pattern_table,
+                    self.pattern_table_tile as u16,
+                    fine_y,
+                )
+            }
+            _ => {}
+        }
+    }
 }
