@@ -21,6 +21,36 @@ impl Registers {
         }
     }
 
+    pub fn increment_horizontal(&mut self) {
+        if self.mask.is_rendering_enabled() {
+            if self.vram_address.get_tile_x() == 31 {
+                self.vram_address.set_tile_x(0);
+                self.vram_address.set_nametable_x(!self.vram_address.get_nametable_x())
+            } else {
+                self.vram_address.set_tile_x(self.vram_address.get_tile_x() + 1)
+            }
+        }
+    }
+
+    pub fn increment_vertical(&mut self) {
+        if self.mask.is_rendering_enabled() {
+            if self.vram_address.get_fine_y() < 7 {
+                self.vram_address.set_fine_y(self.vram_address.get_fine_y() + 1)
+            } else {
+                self.vram_address.set_fine_y(0);
+
+                match self.vram_address.get_tile_y() {
+                    29 => {
+                        self.vram_address.set_tile_y(0);
+                        self.vram_address.set_nametable_y(!self.vram_address.get_nametable_y())
+                    },
+                    31 => self.vram_address.set_tile_y(0),
+                    _ => self.vram_address.set_tile_y(self.vram_address.get_tile_y() + 1)
+                }
+            }
+        }
+    }
+
     pub fn get_palette_from_attribute(&self, attribute: u8) -> u8 {
         let mut palette = attribute;
         if self.vram_address.get_tile_x() & 2 != 0 {

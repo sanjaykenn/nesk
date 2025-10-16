@@ -1,4 +1,5 @@
 use crate::ppu::PPUMemory;
+use crate::ppu::registers::VRAMAddress;
 
 pub struct Background {
     shifter_pattern_low: u16,
@@ -22,6 +23,43 @@ impl Background {
             palette: 0,
             pattern_table_tile_low: 0,
             pattern_table_tile_high: 0,
+        }
+    }
+
+    pub fn tick(&mut self, cycle: i32, memory: &mut dyn PPUMemory, transfer_address: &VRAMAddress) {
+        if cycle >= 2 && cycle < 338 {
+            self.shift_registers(memory);
+        }
+
+        if cycle == 0 {
+            return;
+        }
+
+        if cycle <= 256 {
+            self.load_tile(cycle, memory);
+
+            if cycle & 7 == 0 {
+                memory.get_registers().increment_horizontal();
+
+                if cycle == 256 {
+                    memory.get_registers().increment_vertical()
+                }
+            }
+        } else if cycle == 257 {
+            self.load_tile(cycle, memory);
+
+            if memory.get_registers().mask.is_rendering_enabled() {
+                memory.get_registers().vram_address.set_nametable_x(transfer_address.get_nametable_x());
+                memory.get_registers().vram_address.set_tile_x(transfer_address.get_tile_x())
+            }
+        } else if cycle <= 260 {
+            self.load_tile(cycle, memory)
+        } else if cycle >= 321 && cycle <= 340 {
+            self.load_tile(cycle, memory);
+
+            if cycle & 7 == 0 {
+                memory.get_registers().increment_horizontal()
+            }
         }
     }
 
