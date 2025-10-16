@@ -1,3 +1,4 @@
+use crate::ppu::PPUMemory;
 use crate::ppu::sprites::{SpriteAttribute, Sprites};
 
 struct Foreground {
@@ -22,6 +23,19 @@ impl Foreground {
             sprites: Sprites::new(),
             show_sprite_zero: false,
             sprite_zero_active: false
+        }
+    }
+
+    fn shift_registers(&mut self, memory: &mut dyn PPUMemory) {
+        if memory.get_registers().mask.get_show_sprites() {
+            for i in 0..self.sprite_x.len() {
+                if self.sprite_x[i] > 0 {
+                    self.sprite_x[i] -= 1;
+                } else {
+                    self.shifter_patterns_low[i] <<= 1;
+                    self.shifter_patterns_high[i] <<= 1;
+                }
+            }
         }
     }
 }
