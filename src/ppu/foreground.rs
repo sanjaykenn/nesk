@@ -26,6 +26,29 @@ impl Foreground {
         }
     }
 
+    fn tick(&mut self, cycle: usize, scanline: usize, memory: &mut dyn PPUMemory) {
+        if cycle >= 2 && cycle < 258 {
+            self.shift_registers(memory)
+        }
+
+        if cycle == 0 {
+            self.sprite_zero_active = self.sprites.is_sprite_zero_active();
+            self.sprites.reset_evaluation(scanline)
+        } else if cycle <= 64 {
+            self.oam_return_ff = true;
+
+            if cycle & 1 != 0 {
+                self.sprites.get_oam_secondary().set_byte(cycle - 1 >> 1, 0xFF)
+            }
+        } else if cycle <= 256 {
+            self.oam_return_ff = false;
+            self.sprites.evaluate(if memory.get_registers().control.get_sprite_size() { 16 } else { 8 });
+            memory.get_registers().status.set_sprite_overflow(self.sprites.is_overflowing())
+        } else if cycle <= 320 {
+            self.load_sprites(cycle, scanline, memory)
+        }
+    }
+
     fn shift_registers(&mut self, memory: &mut dyn PPUMemory) {
         if memory.get_registers().mask.get_show_sprites() {
             for i in 0..self.sprite_x.len() {
