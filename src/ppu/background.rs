@@ -1,3 +1,5 @@
+use crate::ppu::PPUMemory;
+
 pub struct Background {
     shifter_pattern_low: u16,
     shifter_pattern_high: u16,
@@ -29,5 +31,15 @@ impl Background {
 
         self.shifter_attribute_low = self.shifter_attribute_low & 0xFF00 | if self.palette & 1 != 0 { 0xFF } else { 0x00 };
         self.shifter_attribute_high = self.shifter_attribute_high & 0xFF00 | if self.palette & 2 != 0 { 0xFF } else { 0x00 };
+    }
+
+    fn shift_registers(&mut self, memory: &mut dyn PPUMemory) {
+        if memory.get_registers().mask.get_show_background() {
+            self.shifter_pattern_low <<= 1;
+            self.shifter_pattern_high <<= 1;
+
+            self.shifter_attribute_low <<= 1;
+            self.shifter_attribute_high <<= 1;
+        }
     }
 }
