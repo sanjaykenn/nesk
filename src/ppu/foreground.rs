@@ -17,7 +17,7 @@ impl Foreground {
         Self {
             shifter_patterns_low: [0; 8],
             shifter_patterns_high: [0; 8],
-            sprite_attribute_bytes: [0; 8].map(|_| SpriteAttribute::new()),
+            sprite_attribute_bytes: [SpriteAttribute::new(); 8],
             sprite_x: [0; 8],
             oam_return_ff: false,
             sprites: Sprites::new(),
@@ -36,6 +36,19 @@ impl Foreground {
                     self.shifter_patterns_high[i] <<= 1;
                 }
             }
+        }
+    }
+
+    fn load_sprites(&mut self, cycle: usize, scanline: usize, memory: &mut dyn PPUMemory) {
+        let index = (cycle - 257) / 8;
+        let sprite = self.sprites.get_oam_secondary().get_sprite(index);
+
+        match cycle & 7 {
+            0 => self.sprite_x[index] = sprite.get_x(),
+            3 => self.sprite_attribute_bytes[index] = sprite.get_attribute(),
+            5 => self.shifter_patterns_low[index] = sprite.get_pattern_low(scanline, memory),
+            7 => self.shifter_patterns_high[index] = sprite.get_pattern_high(scanline, memory),
+            _ => {}
         }
     }
 }

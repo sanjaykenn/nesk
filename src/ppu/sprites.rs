@@ -4,6 +4,7 @@ use crate::ppu::PPUMemory;
 use crate::ppu::registers::Registers;
 use crate::ppu::utils::flip_byte;
 
+#[derive(Clone, Copy)]
 pub struct SpriteAttribute(u8);
 
 impl SpriteAttribute {
@@ -70,8 +71,8 @@ impl Sprite {
         self.id
     }
 
-    pub fn get_attribute(&self) -> &SpriteAttribute {
-        &self.attribute
+    pub fn get_attribute(&self) -> SpriteAttribute {
+        self.attribute
     }
 
     pub fn get_x(&self) -> u8 {
