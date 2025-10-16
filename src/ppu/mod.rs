@@ -1,4 +1,5 @@
 mod utils;
+mod registers;
 
 pub struct PPU {
 
