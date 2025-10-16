@@ -82,4 +82,16 @@ impl Background {
             _ => {}
         }
     }
+
+    fn load_next_pixel(&self, memory: &mut dyn PPUMemory) -> (u8, u8) {
+        if !memory.get_registers().mask.get_show_background() {
+            return (0, 0)
+        }
+
+        let shift = !memory.get_registers().fine_x & 15;
+        let pattern = self.shifter_pattern_low >> shift & 1 | self.shifter_pattern_high >> (shift - 1) & 2;
+        let palette = self.shifter_attribute_low >> shift & 1 | self.shifter_attribute_high >> (shift - 1) & 2;
+
+        (pattern as u8, palette as u8)
+    }
 }
