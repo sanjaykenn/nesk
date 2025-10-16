@@ -1,4 +1,5 @@
 use crate::{bit_field, bit_range};
+use crate::ppu::oam::OAM;
 use crate::ppu::PPUMemory;
 use crate::ppu::registers::Registers;
 use crate::ppu::utils::flip_byte;
@@ -122,6 +123,146 @@ impl Sprite {
             flip_byte(pattern)
         } else {
             pattern
+        }
+    }
+}
+
+enum SpriteEvaluationState {
+    LoadY,
+    LoadSprite,
+    Overflow,
+    End
+}
+
+pub struct Sprites {
+    sprite_evaluation_state: SpriteEvaluationState,
+    oam_primary: OAM<64>,
+    oam_secondary: OAM<8>,
+    oam_index: usize,
+    sprite_index: usize,
+    sprite_count: usize,
+    sprite_zero_active: bool,
+    overflow: bool,
+    scanline: usize
+}
+
+impl Sprites {
+    pub fn new() -> Self {
+        Self {
+            sprite_evaluation_state: SpriteEvaluationState::LoadY,
+            oam_primary: OAM::new(),
+            oam_secondary: OAM::new(),
+            oam_index: 0,
+            sprite_index: 0,
+            sprite_count: 0,
+            sprite_zero_active: false,
+            overflow: false,
+            scanline: 0
+        }
+    }
+
+    pub fn reset_evaluation(&mut self, scanline: usize) {
+        self.sprite_evaluation_state = SpriteEvaluationState::LoadY;
+        self.oam_index = 0;
+        self.sprite_index = 0;
+        self.sprite_count = 0;
+        self.sprite_zero_active = false;
+        self.overflow = false;
+        self.scanline = scanline
+    }
+
+    pub fn get_oam_primary(&mut self) -> &mut OAM<64> {
+        &mut self.oam_primary
+    }
+
+    pub fn get_oam_secondary(&mut self) -> &mut OAM<8> {
+        &mut self.oam_secondary
+    }
+
+    pub fn is_sprite_zero_active(&self) -> bool {
+        self.sprite_zero_active
+    }
+
+    pub fn is_overflowing(&self) -> bool {
+        self.overflow
+    }
+
+    pub fn evaluate(&mut self, sprite_size: usize) {
+        self.sprite_evaluation_state = match self.sprite_evaluation_state {
+            SpriteEvaluationState::LoadY => {
+                let y = self.oam_primary
+                    .get_sprite(self.oam_index)
+                    .get(self.sprite_index);
+
+                if self.sprite_in_scanline(y, sprite_size) {
+                    self.oam_secondary
+                        .get_sprite_mut(self.sprite_count)
+                        .set(self.sprite_index, y);
+
+                    if self.oam_index == 0 {
+                        self.sprite_zero_active = true
+                    }
+
+                    SpriteEvaluationState::LoadSprite
+                } else {
+                    self.increment_oam_index()
+                }
+            },
+            SpriteEvaluationState::LoadSprite => {
+                let data = self.oam_primary
+                    .get_sprite(self.oam_index)
+                    .get(self.sprite_index);
+
+                self.oam_secondary
+                    .get_sprite_mut(self.sprite_count)
+                    .set(self.sprite_index, data);
+
+                if self.sprite_index == 3 {
+                    self.sprite_index = 0;
+                    self.sprite_count += 1;
+                    self.increment_oam_index()
+                } else {
+                    self.sprite_index += 1;
+                    SpriteEvaluationState::LoadSprite
+                }
+            },
+            SpriteEvaluationState::Overflow => {
+                let y = self.oam_primary
+                    .get_sprite(self.oam_index)
+                    .get(self.sprite_index);
+
+                if self.sprite_in_scanline(y, sprite_size) {
+                    self.overflow = true;
+                    SpriteEvaluationState::End
+                } else {
+                    self.oam_index += 1;
+                    self.sprite_index = (self.sprite_index + 1) & 3;
+
+                    if self.oam_index > 63 {
+                        SpriteEvaluationState::End
+                    } else {
+                        SpriteEvaluationState::Overflow
+                    }
+                }
+            },
+            SpriteEvaluationState::End => SpriteEvaluationState::End
+        }
+    }
+
+    fn sprite_in_scanline(&self, sprite_y: u8, sprite_size: usize) -> bool {
+        let y = sprite_y as usize;
+        y <= self.scanline && y + sprite_size > self.scanline
+    }
+
+    fn increment_oam_index(&mut self) -> SpriteEvaluationState {
+        self.oam_index += 1;
+
+        if self.oam_index >= 64 {
+            SpriteEvaluationState::End
+        } else if self.sprite_count < 8 {
+            SpriteEvaluationState::LoadY
+        } else {
+            SpriteEvaluationState::Overflow
         }
     }
 }

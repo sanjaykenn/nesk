@@ -4,6 +4,7 @@ mod utils;
 mod registers;
 mod background;
 mod sprites;
+mod oam;
 
 pub struct PPU {
 
