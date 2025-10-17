@@ -11,3 +11,7 @@ pub trait Mapper {
     fn ppu_read(&mut self, bus: &mut PPUBus, address: u16) -> u8;
     fn ppu_write(&mut self, bus: &mut PPUBus, address: u16, value: u8);
 }
+
+pub fn from_ines(path: &str) -> Box<dyn Mapper> {
+    mapper::from_ines(path).unwrap()
+}

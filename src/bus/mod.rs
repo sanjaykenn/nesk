@@ -15,12 +15,12 @@ pub struct Bus {
     cpu_memory: CPUMemoryMap,
 }
 
-pub struct CPUMemoryMap {
+struct CPUMemoryMap {
     mapper: Box<dyn Mapper>,
     bus: CPUBus
 }
 
-pub struct PPUMemoryMap<'a> {
+struct PPUMemoryMap<'a> {
     mapper: &'a mut dyn Mapper,
     bus: &'a mut PPUBus
 }

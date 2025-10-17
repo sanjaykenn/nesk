@@ -45,6 +45,10 @@ impl CPU {
 
         self.state = state;
     }
+    
+    pub fn send_nmi(&mut self) {
+        todo!()
+    }
 
     fn read(&mut self, memory: &mut dyn CPUMemory) -> u8 {
         match &self.state.get_mode() {

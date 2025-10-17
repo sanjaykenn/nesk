@@ -22,8 +22,9 @@ impl CPUBus {
         &mut self.ppu
     }
 
-    pub fn get_ppu_memory_map<'a>(&'a mut self, mapper: &'a mut dyn Mapper) -> PPUMemoryMap<'a> {
-        PPUMemoryMap::new(mapper, &mut self.ppu_bus)
+    pub fn tick_ppu(&mut self, mapper: &mut dyn Mapper) {
+        let mut memory_map = PPUMemoryMap::new(mapper, &mut self.ppu_bus);
+        self.ppu.tick(&mut memory_map);
     }
 
     pub fn read(&mut self, mapper: &mut dyn Mapper, address: u16) -> u8 {

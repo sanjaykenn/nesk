@@ -11,8 +11,8 @@ impl CPUMemoryMap {
         }
     }
 
-    pub fn get_ppu_memory(&'_ mut self) -> PPUMemoryMap<'_> {
-        self.bus.get_ppu_memory_map(self.mapper.as_mut())
+    pub fn tick_ppu(&'_ mut self) {
+        self.bus.tick_ppu(self.mapper.as_mut())
     }
 }
 

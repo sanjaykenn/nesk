@@ -24,16 +24,21 @@ impl PPU {
         }
     }
 
-    pub fn get_nmi(&self) -> bool {
-        self.nmi
+    pub fn pull_nmi(&mut self) -> bool {
+        if self.nmi {
+            self.nmi = false;
+            true
+        } else {
+            false
+        }
     }
 
     fn send_nmi(&mut self) {
         self.nmi = true
     }
 
-    pub fn reset_nmi(&mut self) {
-        self.nmi = false
+    pub fn pull_dma(&mut self) -> Option<u8> {
+        self.dma.take()
     }
 
     pub fn read_register(&mut self, register: PPURegister, memory: &mut dyn PPUMemory) -> u8 {
@@ -128,6 +133,10 @@ impl PPU {
             },
             _ => {}
         }
+    }
+
+    pub fn write_oam(&mut self, address: u8, value: u8) {
+        self.foreground.get_sprites().get_oam_primary().set_byte(address as usize, value)
     }
 
     fn load_pixel(&mut self, bg_pattern: u8, bg_palette: u8, fg_pattern: u8, fg_palette: u8, fg_priority: bool) -> (u8, u8) {
