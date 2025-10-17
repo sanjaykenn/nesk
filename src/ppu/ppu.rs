@@ -243,9 +243,9 @@ impl PPU {
         }
     }
 
-    pub fn get_output(&mut self) -> Option<[[[u8; PIXEL_SIZE]; WIDTH]; HEIGHT]> {
+    pub fn get_output(&mut self) -> Option<&[[[u8; PIXEL_SIZE]; WIDTH]; HEIGHT]> {
         if self.render {
-            Some(self.pixels)
+            Some(&self.pixels)
         } else {
             None
         }

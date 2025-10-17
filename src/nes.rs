@@ -1,6 +1,6 @@
 use crate::bus::Bus;
 use crate::cpu::CPU;
-use crate::NES;
+use crate::{HEIGHT, NES, PIXEL_SIZE, WIDTH};
 use crate::ppu::PPU;
 
 #[derive(Clone, Copy)]
@@ -99,5 +99,9 @@ impl NES {
         }
 
         self.cycle = (self.cycle + 1) % 24;
+    }
+    
+    pub fn get_screen_output(&mut self) -> Option<&[[[u8; PIXEL_SIZE]; WIDTH]; HEIGHT]> {
+        self.get_ppu().get_output()
     }
 }
