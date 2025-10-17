@@ -15,6 +15,7 @@ mod memory;
 pub struct PPU {
     screen: Box<dyn Screen>,
     register: Registers,
+    palette_ram: [u8; 0x20],
     nmi: bool,
     dma: Option<u8>,
     scanline: usize,
@@ -31,4 +32,16 @@ pub struct PPU {
 pub trait PPUMemory {
     fn read(&mut self, address: u16) -> u8;
     fn write(&mut self, address: u16, value: u8);
+}
+
+pub enum PPURegister {
+    Control,
+    Mask,
+    Status,
+    OAMAddress,
+    OAMData,
+    Scroll,
+    VRAMAddress,
+    VRAMData,
+    DMA
 }

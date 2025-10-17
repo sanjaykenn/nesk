@@ -98,4 +98,12 @@ impl Foreground {
 
         (0, 0, false)
     }
+
+    pub fn oam_return_ff(&self) -> bool {
+        self.oam_return_ff
+    }
+
+    pub fn get_sprites(&mut self) -> &mut Sprites {
+        &mut self.sprites
+    }
 }
