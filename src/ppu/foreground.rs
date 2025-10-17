@@ -1,7 +1,8 @@
 use crate::ppu::PPUMemory;
+use crate::ppu::registers::Registers;
 use crate::ppu::sprites::{SpriteAttribute, Sprites};
 
-struct Foreground {
+pub struct Foreground {
     shifter_patterns_low: [u8; 8],
     shifter_patterns_high: [u8; 8],
     sprite_attribute_bytes: [SpriteAttribute; 8],
@@ -26,9 +27,9 @@ impl Foreground {
         }
     }
 
-    fn tick(&mut self, cycle: usize, scanline: usize, memory: &mut dyn PPUMemory) {
+    fn tick(&mut self, cycle: usize, scanline: usize, registers: &mut Registers, memory: &mut dyn PPUMemory) {
         if cycle >= 2 && cycle < 258 {
-            self.shift_registers(memory)
+            self.shift_registers(registers)
         }
 
         if cycle == 0 {
@@ -42,15 +43,15 @@ impl Foreground {
             }
         } else if cycle <= 256 {
             self.oam_return_ff = false;
-            self.sprites.evaluate(if memory.get_registers().control.get_sprite_size() { 16 } else { 8 });
-            memory.get_registers().status.set_sprite_overflow(self.sprites.is_overflowing())
+            self.sprites.evaluate(if registers.control.get_sprite_size() { 16 } else { 8 });
+            registers.status.set_sprite_overflow(self.sprites.is_overflowing())
         } else if cycle <= 320 {
-            self.load_sprites(cycle, scanline, memory)
+            self.load_sprites(cycle, scanline, registers, memory)
         }
     }
 
-    fn shift_registers(&mut self, memory: &mut dyn PPUMemory) {
-        if memory.get_registers().mask.get_show_sprites() {
+    fn shift_registers(&mut self, registers: &Registers, ) {
+        if registers.mask.get_show_sprites() {
             for i in 0..self.sprite_x.len() {
                 if self.sprite_x[i] > 0 {
                     self.sprite_x[i] -= 1;
@@ -62,21 +63,21 @@ impl Foreground {
         }
     }
 
-    fn load_sprites(&mut self, cycle: usize, scanline: usize, memory: &mut dyn PPUMemory) {
+    fn load_sprites(&mut self, cycle: usize, scanline: usize, registers: &Registers, memory: &mut dyn PPUMemory) {
         let index = (cycle - 257) / 8;
         let sprite = self.sprites.get_oam_secondary().get_sprite(index);
 
         match cycle & 7 {
             0 => self.sprite_x[index] = sprite.get_x(),
             3 => self.sprite_attribute_bytes[index] = sprite.get_attribute(),
-            5 => self.shifter_patterns_low[index] = sprite.get_pattern_low(scanline, memory),
-            7 => self.shifter_patterns_high[index] = sprite.get_pattern_high(scanline, memory),
+            5 => self.shifter_patterns_low[index] = sprite.get_pattern_low(scanline, registers, memory),
+            7 => self.shifter_patterns_high[index] = sprite.get_pattern_high(scanline, registers, memory),
             _ => {}
         }
     }
 
-    fn load_next_pixel(&mut self, memory: &mut dyn PPUMemory) -> (u8, u8, bool) {
-        if memory.get_registers().mask.get_show_sprites() {
+    fn load_next_pixel(&mut self, registers: &Registers) -> (u8, u8, bool) {
+        if registers.mask.get_show_sprites() {
             for i in 0..self.sprite_x.len() {
                 if self.sprite_x[i] == 0 {
                     let pixel = self.shifter_patterns_high[i] >> 6 & 2 |

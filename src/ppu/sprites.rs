@@ -105,8 +105,8 @@ impl Sprite {
         }
     }
 
-    pub fn get_pattern_low(&self, scanline: usize, memory: &mut dyn PPUMemory) -> u8 {
-        let (table, tile, y) = self.get_pattern_table_index(scanline, memory.get_registers());
+    pub fn get_pattern_low(&self, scanline: usize, registers: &Registers, memory: &mut dyn PPUMemory) -> u8 {
+        let (table, tile, y) = self.get_pattern_table_index(scanline, registers);
         let pattern = memory.read_pattern_table_tile_low(table, tile, y);
 
         if self.get_attribute().get_flip_horizontal() {
@@ -116,8 +116,8 @@ impl Sprite {
         }
     }
 
-    pub fn get_pattern_high(&self, scanline: usize, memory: &mut dyn PPUMemory) -> u8 {
-        let (table, tile, y) = self.get_pattern_table_index(scanline, memory.get_registers());
+    pub fn get_pattern_high(&self, scanline: usize, registers: &Registers, memory: &mut dyn PPUMemory) -> u8 {
+        let (table, tile, y) = self.get_pattern_table_index(scanline, registers);
         let pattern = memory.read_pattern_table_tile_high(table, tile, y);
 
         if self.get_attribute().get_flip_horizontal() {

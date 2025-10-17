@@ -1,5 +1,5 @@
 use crate::ppu::PPUMemory;
-use crate::ppu::registers::VRAMAddress;
+use crate::ppu::registers::{Registers, VRAMAddress};
 
 pub struct Background {
     shifter_pattern_low: u16,
@@ -26,9 +26,9 @@ impl Background {
         }
     }
 
-    pub fn tick(&mut self, cycle: i32, memory: &mut dyn PPUMemory, transfer_address: &VRAMAddress) {
+    pub fn tick(&mut self, cycle: i32, registers: &mut Registers, memory: &mut dyn PPUMemory, transfer_address: &VRAMAddress) {
         if cycle >= 2 && cycle < 338 {
-            self.shift_registers(memory);
+            self.shift_registers(registers);
         }
 
         if cycle == 0 {
@@ -36,29 +36,29 @@ impl Background {
         }
 
         if cycle <= 256 {
-            self.load_tile(cycle, memory);
+            self.load_tile(cycle, registers, memory);
 
             if cycle & 7 == 0 {
-                memory.get_registers().increment_horizontal();
+                registers.increment_horizontal();
 
                 if cycle == 256 {
-                    memory.get_registers().increment_vertical()
+                    registers.increment_vertical()
                 }
             }
         } else if cycle == 257 {
-            self.load_tile(cycle, memory);
+            self.load_tile(cycle, registers, memory);
 
-            if memory.get_registers().mask.is_rendering_enabled() {
-                memory.get_registers().vram_address.set_nametable_x(transfer_address.get_nametable_x());
-                memory.get_registers().vram_address.set_tile_x(transfer_address.get_tile_x())
+            if registers.mask.is_rendering_enabled() {
+                registers.vram_address.set_nametable_x(transfer_address.get_nametable_x());
+                registers.vram_address.set_tile_x(transfer_address.get_tile_x())
             }
         } else if cycle <= 260 {
-            self.load_tile(cycle, memory)
+            self.load_tile(cycle, registers, memory)
         } else if cycle >= 321 && cycle <= 340 {
-            self.load_tile(cycle, memory);
+            self.load_tile(cycle, registers, memory);
 
             if cycle & 7 == 0 {
-                memory.get_registers().increment_horizontal()
+                registers.increment_horizontal()
             }
         }
     }
@@ -71,8 +71,8 @@ impl Background {
         self.shifter_attribute_high = self.shifter_attribute_high & 0xFF00 | if self.palette & 2 != 0 { 0xFF } else { 0x00 };
     }
 
-    fn shift_registers(&mut self, memory: &mut dyn PPUMemory) {
-        if memory.get_registers().mask.get_show_background() {
+    fn shift_registers(&mut self, registers: &Registers) {
+        if registers.mask.get_show_background() {
             self.shifter_pattern_low <<= 1;
             self.shifter_pattern_high <<= 1;
 
@@ -81,25 +81,25 @@ impl Background {
         }
     }
 
-    fn load_tile(&mut self, cycle: i32, memory: &mut dyn PPUMemory) {
+    fn load_tile(&mut self, cycle: i32, registers: &Registers, memory: &mut dyn PPUMemory) {
         match cycle & 7 {
             1 => {
                 if cycle >= 9 {
                     self.load_shift_registers();
                 }
 
-                let address = memory.get_registers().vram_address.get();
+                let address = registers.vram_address.get();
                 self.pattern_table_tile = memory.read_nametable(address);
             }
             3 => {
-                let nametable = memory.get_registers().vram_address.get_nametable();
-                let attribute_index = memory.get_registers().vram_address.get_attribute_index();
+                let nametable = registers.vram_address.get_nametable();
+                let attribute_index = registers.vram_address.get_attribute_index();
                 let attribute = memory.read_attribute_table(nametable, attribute_index);
-                self.palette = memory.get_registers().get_palette_from_attribute(attribute)
+                self.palette = registers.get_palette_from_attribute(attribute)
             }
             5 => {
-                let background_pattern_table = memory.get_registers().control.get_background_pattern_table();
-                let fine_y = memory.get_registers().vram_address.get_fine_y();
+                let background_pattern_table = registers.control.get_background_pattern_table();
+                let fine_y = registers.vram_address.get_fine_y();
 
                 self.pattern_table_tile_low = memory.read_pattern_table_tile_low(
                     background_pattern_table,
@@ -108,8 +108,8 @@ impl Background {
                 )
             }
             7 => {
-                let background_pattern_table = memory.get_registers().control.get_background_pattern_table();
-                let fine_y = memory.get_registers().vram_address.get_fine_y();
+                let background_pattern_table = registers.control.get_background_pattern_table();
+                let fine_y = registers.vram_address.get_fine_y();
 
                 self.pattern_table_tile_high = memory.read_pattern_table_tile_high(
                     background_pattern_table,
@@ -121,12 +121,12 @@ impl Background {
         }
     }
 
-    fn load_next_pixel(&self, memory: &mut dyn PPUMemory) -> (u8, u8) {
-        if !memory.get_registers().mask.get_show_background() {
+    fn load_next_pixel(&self, registers: &Registers) -> (u8, u8) {
+        if !registers.mask.get_show_background() {
             return (0, 0)
         }
 
-        let shift = !memory.get_registers().fine_x & 15;
+        let shift = !registers.fine_x & 15;
         let pattern = self.shifter_pattern_low >> shift & 1 | self.shifter_pattern_high >> (shift - 1) & 2;
         let palette = self.shifter_attribute_low >> shift & 1 | self.shifter_attribute_high >> (shift - 1) & 2;
 
