@@ -6,10 +6,13 @@ use crate::cpu::state::{CPUState, CycleMode};
 use crate::cpu::state::CPUState::Break;
 
 impl CPU {
-    pub fn new() -> Self {
+    pub fn new(memory: &mut dyn CPUMemory) -> Self {
+        let mut registers = Registers::new();
+        registers.set_pc(memory.read(0xFFFC), memory.read(0xFFFD));
+
         Self {
             state: CPUState::FetchInstruction,
-            registers: Registers::new(),
+            registers,
             operation_unit: OperationUnit::new(),
             low: 0,
             high: 0,

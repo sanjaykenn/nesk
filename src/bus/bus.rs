@@ -4,9 +4,12 @@ use crate::ppu::PPU;
 
 impl Bus {
     pub fn from_ines(path: &str) -> Self {
+        let mut cpu_memory = CPUMemoryMap::new(mapper::from_ines(path));
+        let cpu = CPU::new(&mut cpu_memory);
+
         Self {
-            cpu: CPU::new(),
-            cpu_memory: CPUMemoryMap::new(mapper::from_ines(path)),
+            cpu,
+            cpu_memory,
         }
     }
 
