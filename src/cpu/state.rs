@@ -12,7 +12,7 @@ pub enum CPUState {
     Read,
     DummyWrite,
     Write,
-    Break(i32),
+    Break(i32, bool),
     JumpSubroutine(i32),
     ReturnInterrupt(i32),
     ReturnSubroutine(i32),
@@ -27,12 +27,12 @@ impl CPUState {
             | CPUState::JumpAbsolute | CPUState::JumpIndirect(0) | CPUState::ReturnSubroutine(3) | CPUState::JumpSubroutine(3) => CycleMode::Fetch,
 
             CPUState::JumpIndirect(_) | CPUState::IndexedRead(_) | CPUState::Indirect(_, _)
-            | CPUState::DummyRead | CPUState::Read | CPUState::Break(3) | CPUState::Break(4) => CycleMode::Read,
+            | CPUState::DummyRead | CPUState::Read | CPUState::Break(3, _) | CPUState::Break(4, _) => CycleMode::Read,
 
             CPUState::ReturnInterrupt(3) | CPUState::ReturnSubroutine(2) | CPUState::PullRegister(1, _) | CPUState::JumpSubroutine(0) => CycleMode::Peak,
             CPUState::ReturnInterrupt(_) | CPUState::ReturnSubroutine(_) | CPUState::PullRegister(_, _) => CycleMode::Pop,
             CPUState::Write | CPUState::DummyWrite => CycleMode::Write,
-            CPUState::Break(_) | CPUState::PushRegister(_) | CPUState::JumpSubroutine(_) => CycleMode::Push,
+            CPUState::Break(_, _) | CPUState::PushRegister(_) | CPUState::JumpSubroutine(_) => CycleMode::Push,
         }
     }
 }

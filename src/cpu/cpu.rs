@@ -3,6 +3,7 @@ use crate::cpu::{CPUMemory, CPU};
 use crate::cpu::instruction::{AddressingMode, IndexMode, Instruction, TargetRegister};
 use crate::cpu::registers::Registers;
 use crate::cpu::state::{CPUState, CycleMode};
+use crate::cpu::state::CPUState::Break;
 
 impl CPU {
     pub fn new() -> Self {
@@ -16,6 +17,7 @@ impl CPU {
             fix_pch: false,
             branch: false,
             output: None,
+            nmi: false,
         }
     }
 
@@ -43,11 +45,20 @@ impl CPU {
 
         self.write(memory);
 
-        self.state = state;
+        if matches!(state, CPUState::FetchInstruction) {
+            self.state = if self.nmi {
+                self.nmi = false;
+                Break(0, true)
+            } else {
+                state
+            }
+        } else {
+            self.state = state;
+        }
     }
-    
+
     pub fn send_nmi(&mut self) {
-        todo!()
+        self.nmi = true;
     }
 
     fn read(&mut self, memory: &mut dyn CPUMemory) -> u8 {
@@ -239,18 +250,23 @@ impl CPU {
                 }
                 CPUState::FetchInstruction
             }
-            CPUState::Break(cycle) => match cycle {
-                0 => { self.value = self.registers.get_pch(); CPUState::Break(1) },
-                1 => { self.value = self.registers.get_pcl(); CPUState::Break(2) },
+            CPUState::Break(cycle, nmi) => match cycle {
+                0 => { self.value = self.registers.get_pch(); CPUState::Break(1, nmi) },
+                1 => { self.value = self.registers.get_pcl(); CPUState::Break(2, nmi) },
                 2 => {
-                    self.low = 0xFE;
+                    self.low = if nmi { 0xFA } else { 0xFE };
                     self.high = 0xFF;
-                    self.value = self.registers.status.get(); CPUState::Break(3)
+                    self.value = if nmi {
+                        self.registers.status.get_b_clear()
+                    } else {
+                        self.registers.status.get()
+                    };
+                    CPUState::Break(3, nmi)
                 },
                 3 => {
-                    self.low = 0xFF;
+                    self.low = if nmi { 0xFB } else { 0xFF };
                     self.high = 0xFF;
-                    self.registers.set_pcl(buffer); CPUState::Break(4)
+                    self.registers.set_pcl(buffer); CPUState::Break(4, nmi)
                 },
                 4 => {
                     self.registers.set_pch(buffer);
@@ -296,7 +312,7 @@ impl CPU {
 
     fn implied_instructions(&mut self) -> CPUState {
         match self.registers.instruction.get_opcode() {
-            0x00 => { self.registers.increment_pc(); return CPUState::Break(0) },
+            0x00 => { self.registers.increment_pc(); return CPUState::Break(0, false) },
             0x20 => return CPUState::JumpSubroutine(0),
             0x40 => return CPUState::ReturnInterrupt(0),
             0x60 => return CPUState::ReturnSubroutine(0),

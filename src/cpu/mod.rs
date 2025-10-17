@@ -20,6 +20,7 @@ pub struct CPU {
     fix_pch: bool,
     branch: bool,
     output: Option<TargetRegister>,
+    nmi: bool,
 }
 
 pub trait CPUMemory {

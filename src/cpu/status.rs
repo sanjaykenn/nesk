@@ -9,6 +9,10 @@ impl StatusRegister {
         self.0
     }
 
+    pub fn get_b_clear(&self) -> u8 {
+        self.0 & 0b11101111
+    }
+
     pub fn set(&mut self, sr: u8) {
         self.0 = sr | 0b00110000;
     }
