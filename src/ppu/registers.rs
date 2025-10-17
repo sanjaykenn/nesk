@@ -1,4 +1,5 @@
 use crate::{bit_field, bit_range};
+use crate::ppu::PPURegister;
 
 pub struct Registers {
     pub control: Control,
@@ -156,4 +157,20 @@ impl VRAMAddress {
 
     bit_range!(get: get_nametable @ 10, 2 => u16);
     bit_range!(get_fine_y, set_fine_y @ 12, 3 => u16);
+}
+
+impl PPURegister {
+    pub fn from(register: u8) -> PPURegister {
+        match register {
+            0 => PPURegister::Control,
+            1 => PPURegister::Mask,
+            2 => PPURegister::Status,
+            3 => PPURegister::OAMAddress,
+            4 => PPURegister::OAMData,
+            5 => PPURegister::Scroll,
+            6 => PPURegister::VRAMAddress,
+            7 => PPURegister::VRAMData,
+            _ => unreachable!("Unmapped address space for ppu register")
+        }
+    }
 }
