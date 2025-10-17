@@ -2,12 +2,11 @@ use crate::ppu::background::Background;
 use crate::ppu::foreground::Foreground;
 use crate::ppu::{colors, PPUMemory, PPURegister, PPU};
 use crate::ppu::registers::{Registers, VRAMAddress};
-use crate::{Screen, HEIGHT, PIXEL_SIZE, WIDTH};
+use crate::{HEIGHT, PIXEL_SIZE, WIDTH};
 
 impl PPU {
-    pub fn new(screen: Box<dyn Screen>) -> Self {
+    pub fn new() -> Self {
         Self {
-            screen,
             register: Registers::new(),
             palette_ram: [0; 0x20],
             nmi: false,
@@ -20,7 +19,8 @@ impl PPU {
             odd_frame: false,
             background: Background::new(),
             foreground: Foreground::new(),
-            pixels: [[[0; PIXEL_SIZE]; WIDTH]; HEIGHT]
+            pixels: [[[0; PIXEL_SIZE]; WIDTH]; HEIGHT],
+            render: false,
         }
     }
 
@@ -224,13 +224,21 @@ impl PPU {
 
             if self.scanline > 261 {
                 self.scanline = 0;
-                self.screen.render(&self.pixels);
+                self.render = true;
                 self.odd_frame = !self.odd_frame;
 
                 if self.register.mask.is_rendering_enabled() && self.odd_frame {
                     self.cycle = 1
                 }
             }
+        }
+    }
+
+    pub fn get_output(&mut self) -> Option<[[[u8; PIXEL_SIZE]; WIDTH]; HEIGHT]> {
+        if self.render {
+            Some(self.pixels)
+        } else {
+            None
         }
     }
 }

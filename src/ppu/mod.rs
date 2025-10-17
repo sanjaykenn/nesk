@@ -1,7 +1,7 @@
 use crate::ppu::background::Background;
 use crate::ppu::foreground::Foreground;
 use crate::ppu::registers::{Registers, VRAMAddress};
-use crate::{Screen, HEIGHT, PIXEL_SIZE, WIDTH};
+use crate::{HEIGHT, PIXEL_SIZE, WIDTH};
 
 mod utils;
 mod registers;
@@ -14,7 +14,6 @@ mod memory;
 mod colors;
 
 pub struct PPU {
-    screen: Box<dyn Screen>,
     register: Registers,
     palette_ram: [u8; 0x20],
     nmi: bool,
@@ -27,7 +26,8 @@ pub struct PPU {
     address_latch: bool,
     background: Background,
     foreground: Foreground,
-    pixels: [[[u8; PIXEL_SIZE]; WIDTH]; HEIGHT]
+    pixels: [[[u8; PIXEL_SIZE]; WIDTH]; HEIGHT],
+    render: bool,
 }
 
 pub trait PPUMemory {
