@@ -26,7 +26,7 @@ impl Background {
         }
     }
 
-    pub fn tick(&mut self, cycle: i32, registers: &mut Registers, memory: &mut dyn PPUMemory, transfer_address: &VRAMAddress) {
+    pub fn tick(&mut self, cycle: usize, registers: &mut Registers, memory: &mut dyn PPUMemory, transfer_address: &VRAMAddress) {
         if cycle >= 2 && cycle < 338 {
             self.shift_registers(registers);
         }
@@ -81,7 +81,7 @@ impl Background {
         }
     }
 
-    fn load_tile(&mut self, cycle: i32, registers: &Registers, memory: &mut dyn PPUMemory) {
+    fn load_tile(&mut self, cycle: usize, registers: &Registers, memory: &mut dyn PPUMemory) {
         match cycle & 7 {
             1 => {
                 if cycle >= 9 {
@@ -123,7 +123,7 @@ impl Background {
         }
     }
 
-    fn load_next_pixel(&self, registers: &Registers) -> (u8, u8) {
+    pub fn load_next_pixel(&self, registers: &Registers) -> (u8, u8) {
         if !registers.mask.get_show_background() {
             return (0, 0)
         }

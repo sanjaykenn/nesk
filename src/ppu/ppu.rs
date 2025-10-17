@@ -129,4 +129,107 @@ impl PPU {
             _ => {}
         }
     }
+
+    fn load_pixel(&mut self, bg_pattern: u8, bg_palette: u8, fg_pattern: u8, fg_palette: u8, fg_priority: bool) -> (u8, u8) {
+        if bg_pattern == 0 {
+            if fg_pattern == 0 {
+                (0, 0)
+            } else {
+                (fg_pattern, fg_palette)
+            }
+        } else {
+            if fg_pattern == 0 {
+                (bg_pattern, bg_palette)
+            } else {
+                if self.foreground.sprite_zero_active() && self.foreground.show_sprite_zero() {
+                    if self.register.mask.get_show_background() && self.register.mask.get_show_sprites() {
+                        if !self.register.mask.get_show_background_leftmost_pixels() && !self.register.mask.get_show_sprites_leftmost_pixels() {
+                            if self.cycle >= 9 && self.cycle < 258 {
+                                self.register.status.set_sprite_0_hit(true)
+                            }
+                        } else if self.cycle >= 1 && self.cycle < 258 {
+                            self.register.status.set_sprite_0_hit(true)
+                        }
+                    }
+                }
+
+                if fg_priority {
+                    (fg_pattern, fg_palette)
+                } else {
+                    (bg_pattern, bg_palette)
+                }
+            }
+        }
+    }
+
+    fn set_pixel(&mut self, x: usize, y: usize, color: u8) {
+    }
+
+    fn read_palette_ram_index(&self, address: u8) -> u8 {
+        let value = self.palette_ram[address as usize & 0x1F];
+
+        if self.register.mask.get_grayscale() {
+            value & 0x30
+        } else {
+            value
+        }
+    }
+
+    pub fn tick(&mut self, memory: &mut dyn PPUMemory) {
+        self.foreground.clear_show_sprite_zero();
+
+        if self.scanline == 261 {
+            if self.cycle == 1 {
+                self.register.status.set_started_vertical_blank(false);
+                self.register.status.set_sprite_0_hit(false);
+                self.register.status.set_sprite_overflow(false)
+            } else if self.cycle >= 280 && self.cycle <= 304 {
+                if self.register.mask.is_rendering_enabled() {
+                    self.register.vram_address.set_fine_y(self.transfer_address.get_fine_y());
+                    self.register.vram_address.set_nametable_y(self.transfer_address.get_nametable_y());
+                    self.register.vram_address.set_tile_y(self.transfer_address.get_tile_y())
+                }
+            }
+
+            self.background.tick(self.cycle, &mut self.register, memory, &self.transfer_address);
+        } else if self.scanline < 240 {
+            self.background.tick(self.cycle, &mut self.register, memory, &self.transfer_address);
+            self.foreground.tick(self.cycle, self.scanline, &mut self.register, memory);
+        } else if self.scanline == 241 {
+            if self.cycle == 1 {
+                self.register.status.set_started_vertical_blank(true);
+
+                if self.register.control.get_generate_nmi() {
+                    self.send_nmi()
+                }
+            }
+        }
+
+        if self.cycle >= 1 && self.cycle <= WIDTH && self.scanline < HEIGHT {
+            let (bg_pattern, bg_palette) = self.background.load_next_pixel(&mut self.register);
+            let (fg_pattern, fg_palette, fg_priority) = self.foreground.load_next_pixel(&mut self.register);
+
+            let (pattern, palette) = self.load_pixel(bg_pattern, bg_palette, fg_pattern, fg_palette | 4, fg_priority);
+
+            self.set_pixel(self.cycle - 1, self.scanline, self.read_palette_ram_index(
+                palette << 2 | pattern
+            ))
+        }
+
+        self.cycle += 1;
+        if self.cycle > 340 {
+            self.cycle = 0;
+            self.scanline += 1;
+
+            if self.scanline > 261 {
+                self.scanline = 0;
+                self.screen.render(&self.pixels);
+                self.odd_frame = !self.odd_frame;
+
+                if self.register.mask.is_rendering_enabled() && self.odd_frame {
+                    self.cycle = 1
+                }
+            }
+        }
+    }
 }

@@ -27,7 +27,7 @@ impl Foreground {
         }
     }
 
-    fn tick(&mut self, cycle: usize, scanline: usize, registers: &mut Registers, memory: &mut dyn PPUMemory) {
+    pub fn tick(&mut self, cycle: usize, scanline: usize, registers: &mut Registers, memory: &mut dyn PPUMemory) {
         if cycle >= 2 && cycle < 258 {
             self.shift_registers(registers)
         }
@@ -76,7 +76,7 @@ impl Foreground {
         }
     }
 
-    fn load_next_pixel(&mut self, registers: &Registers) -> (u8, u8, bool) {
+    pub fn load_next_pixel(&mut self, registers: &Registers) -> (u8, u8, bool) {
         if registers.mask.get_show_sprites() {
             for i in 0..self.sprite_x.len() {
                 if self.sprite_x[i] == 0 {
@@ -105,5 +105,17 @@ impl Foreground {
 
     pub fn get_sprites(&mut self) -> &mut Sprites {
         &mut self.sprites
+    }
+
+    pub fn clear_show_sprite_zero(&mut self) {
+        self.show_sprite_zero = false;
+    }
+
+    pub fn sprite_zero_active(&self) -> bool {
+        self.sprite_zero_active
+    }
+
+    pub fn show_sprite_zero(&self) -> bool {
+        self.show_sprite_zero
     }
 }
