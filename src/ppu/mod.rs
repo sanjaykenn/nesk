@@ -11,6 +11,7 @@ mod oam;
 mod foreground;
 mod ppu;
 mod memory;
+mod colors;
 
 pub struct PPU {
     screen: Box<dyn Screen>,

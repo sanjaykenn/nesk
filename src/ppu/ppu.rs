@@ -1,6 +1,6 @@
 use crate::ppu::background::Background;
 use crate::ppu::foreground::Foreground;
-use crate::ppu::{PPUMemory, PPURegister, PPU};
+use crate::ppu::{colors, PPUMemory, PPURegister, PPU};
 use crate::ppu::registers::{Registers, VRAMAddress};
 use crate::{Screen, HEIGHT, PIXEL_SIZE, WIDTH};
 
@@ -163,6 +163,7 @@ impl PPU {
     }
 
     fn set_pixel(&mut self, x: usize, y: usize, color: u8) {
+        self.pixels[y][x] = colors::get_color(color, &self.register.mask);
     }
 
     fn read_palette_ram_index(&self, address: u8) -> u8 {
