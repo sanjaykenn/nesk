@@ -3,6 +3,7 @@ use crate::bus::ppu_bus::PPUBus;
 
 mod mapper_00;
 mod utils;
+mod mapper;
 
 pub trait Mapper {
     fn cpu_read(&mut self, bus: &mut CPUBus, address: u16) -> u8;
