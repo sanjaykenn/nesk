@@ -1,6 +1,6 @@
 use crate::bus::cpu_bus::CPUBus;
 use crate::bus::mapper::Mapper;
-use crate::bus::{CPUMemoryMap, PPUMemoryMap};
+use crate::bus::CPUMemoryMap;
 use crate::cpu::CPUMemory;
 
 impl CPUMemoryMap {

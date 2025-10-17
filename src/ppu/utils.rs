@@ -47,9 +47,6 @@ macro_rules! bit_range {
     };
 }
 
-pub(crate) use bit_field;
-pub(crate) use bit_range;
-
 pub fn flip_byte(value: u8) -> u8 {
     let mut result = 0;
     for i in 0u8..8 {

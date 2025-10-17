@@ -33,10 +33,6 @@ impl StatusRegister {
         self.set(self.get() & 0b10111111 | (value as u8) << 6);
     }
 
-    pub fn get_decimal(&self) -> bool {
-        self.get() & 0b00001000 != 0
-    }
-
     pub fn set_decimal(&mut self, value: bool) {
         self.set(self.get() & 0b11110111 | (value as u8) << 3);
     }

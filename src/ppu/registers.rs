@@ -155,8 +155,8 @@ impl VRAMAddress {
     bit_field!(get_nametable_x, set_nametable_x @ 10);
     bit_field!(get_nametable_y, set_nametable_y @ 11);
 
-    bit_range!(get: get_nametable @ 10, 2 => u16);
-    bit_range!(get_fine_y, set_fine_y @ 12, 3 => u16);
+    bit_range!(get: get_nametable @ 10, 12 => u16);
+    bit_range!(get_fine_y, set_fine_y @ 12, 15 => u16);
 }
 
 impl PPURegister {
