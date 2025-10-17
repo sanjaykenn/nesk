@@ -1,4 +1,4 @@
-use crate::ppu::PPUMemory;
+use crate::ppu::{memory, PPUMemory};
 use crate::ppu::registers::{Registers, VRAMAddress};
 
 pub struct Background {
@@ -89,19 +89,20 @@ impl Background {
                 }
 
                 let address = registers.vram_address.get();
-                self.pattern_table_tile = memory.read_nametable(address);
+                self.pattern_table_tile = memory::read_nametable(memory, address);
             }
             3 => {
                 let nametable = registers.vram_address.get_nametable();
                 let attribute_index = registers.vram_address.get_attribute_index();
-                let attribute = memory.read_attribute_table(nametable, attribute_index);
+                let attribute = memory::read_attribute_table(memory, nametable, attribute_index);
                 self.palette = registers.get_palette_from_attribute(attribute)
             }
             5 => {
                 let background_pattern_table = registers.control.get_background_pattern_table();
                 let fine_y = registers.vram_address.get_fine_y();
 
-                self.pattern_table_tile_low = memory.read_pattern_table_tile_low(
+                self.pattern_table_tile_low = memory::read_pattern_table_tile_low(
+                    memory,
                     background_pattern_table,
                     self.pattern_table_tile as u16,
                     fine_y,
@@ -111,7 +112,8 @@ impl Background {
                 let background_pattern_table = registers.control.get_background_pattern_table();
                 let fine_y = registers.vram_address.get_fine_y();
 
-                self.pattern_table_tile_high = memory.read_pattern_table_tile_high(
+                self.pattern_table_tile_high = memory::read_pattern_table_tile_high(
+                    memory,
                     background_pattern_table,
                     self.pattern_table_tile as u16,
                     fine_y,

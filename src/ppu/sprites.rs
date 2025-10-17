@@ -1,6 +1,6 @@
 use crate::{bit_field, bit_range};
 use crate::ppu::oam::OAM;
-use crate::ppu::PPUMemory;
+use crate::ppu::{memory, PPUMemory};
 use crate::ppu::registers::Registers;
 use crate::ppu::utils::flip_byte;
 
@@ -107,7 +107,7 @@ impl Sprite {
 
     pub fn get_pattern_low(&self, scanline: usize, registers: &Registers, memory: &mut dyn PPUMemory) -> u8 {
         let (table, tile, y) = self.get_pattern_table_index(scanline, registers);
-        let pattern = memory.read_pattern_table_tile_low(table, tile, y);
+        let pattern = memory::read_pattern_table_tile_low(memory, table, tile, y);
 
         if self.get_attribute().get_flip_horizontal() {
             flip_byte(pattern)
@@ -118,7 +118,7 @@ impl Sprite {
 
     pub fn get_pattern_high(&self, scanline: usize, registers: &Registers, memory: &mut dyn PPUMemory) -> u8 {
         let (table, tile, y) = self.get_pattern_table_index(scanline, registers);
-        let pattern = memory.read_pattern_table_tile_high(table, tile, y);
+        let pattern = memory::read_pattern_table_tile_high(memory, table, tile, y);
 
         if self.get_attribute().get_flip_horizontal() {
             flip_byte(pattern)
