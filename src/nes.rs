@@ -28,7 +28,7 @@ impl DMA {
 }
 
 impl NES {
-    pub fn from_ines(path: &str) -> Self {
+    pub fn from_ines(path: &[u8]) -> Self {
         Self {
             bus: Bus::from_ines(path),
             dma: DMA::new(),

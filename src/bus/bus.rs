@@ -3,8 +3,8 @@ use crate::cpu::{CPUMemory, CPU};
 use crate::ppu::PPU;
 
 impl Bus {
-    pub fn from_ines(path: &str) -> Self {
-        let mut cpu_memory = CPUMemoryMap::new(mapper::from_ines(path));
+    pub fn from_ines(binary: &[u8]) -> Self {
+        let mut cpu_memory = CPUMemoryMap::new(mapper::from_ines(binary));
         let cpu = CPU::new(&mut cpu_memory);
 
         Self {

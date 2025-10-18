@@ -1,27 +1,38 @@
-use std::fs::File;
-use std::io::Read;
-use crate::bus::mapper::Mapper;
 use crate::bus::mapper::mapper_00::Mapper00;
+use crate::bus::mapper::Mapper;
 
-pub fn from_ines(path: &str) -> Result<Box<dyn Mapper>, String> {
-    let mut file = File::open(path).unwrap();
-    let mut header = [0u8; 16];
-    file.read(&mut header).unwrap();
+pub fn from_ines(binary: &[u8]) -> Result<Box<dyn Mapper>, String> {
+    if binary.len() < 16 {
+        return Err("Invalid binary size".to_string())
+    }
 
-    if header[0 .. 4] != [0x4e, 0x45, 0x53, 0x1a] {
+    let header = &binary[0..16];
+
+    if header[0..4] != [0x4e, 0x45, 0x53, 0x1a] {
         return Err("Invalid header".to_string())
     }
 
+    let mut offset = 16;
+
     if header[6] & 0b0000_0100 != 0 {
-        let mut trainer = [0u8; 512];
-        file.read(&mut trainer).unwrap();
+        offset += 512;
     }
 
-    let mut prg = vec![0u8; header[4] as usize * 0x4000];
-    file.read(&mut prg).unwrap();
+    if binary.len() < offset {
+        return Err("Invalid binary size".to_string())
+    }
 
-    let mut chr = vec![0u8; if header[5] == 0 { 1 } else { header[5] } as usize * 0x2000];
-    file.read(&mut chr).unwrap();
+    let prg_size = header[4] as usize * 0x4000;
+    let chr_size = if header[5] == 0 { 0x2000 } else { header[5] as usize * 0x2000 };
+
+    if binary.len() < offset + prg_size + chr_size {
+        return Err("Invalid binary size".to_string())
+    }
+
+    let prg = binary[offset..(offset + prg_size)].to_vec();
+    offset += prg_size;
+
+    let chr = binary[offset..(offset + chr_size)].to_vec();
 
     let horizontal_mirror = header[6] & 1 == 0;
 
