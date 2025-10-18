@@ -57,7 +57,7 @@ impl PPU {
             PPURegister::VRAMData => {
                 let data;
                 if self.register.vram_address.get() >= 0x3F00 {
-                    self.ppu_data_buffer = self.palette_ram[self.register.vram_address.get() as usize & 0x1F];
+                    self.ppu_data_buffer = self.palette_ram[Self::get_palette_index(self.register.vram_address.get())];
                     data = self.ppu_data_buffer
                 } else {
                     data = self.ppu_data_buffer;
@@ -116,7 +116,7 @@ impl PPU {
             },
             PPURegister::VRAMData => {
                 if self.register.vram_address.get() >= 0x3F00 {
-                    self.palette_ram[self.register.vram_address.get() as usize & 0x1F] = value;
+                    self.palette_ram[Self::get_palette_index(self.register.vram_address.get())] = value;
                 } else {
                     memory.write(self.register.vram_address.get(), value);
                 }
@@ -175,8 +175,16 @@ impl PPU {
         self.pixels[y][x] = colors::get_color(color, &self.register.mask);
     }
 
+    fn get_palette_index(address: u16) -> usize {
+        if address & 3 == 0 {
+            address as usize & 0x0F
+        } else {
+            address as usize & 0x1F
+        }
+    }
+
     fn read_palette_ram_index(&self, address: u8) -> u8 {
-        let value = self.palette_ram[address as usize & 0x1F];
+        let value = self.palette_ram[Self::get_palette_index(address as u16)];
 
         if self.register.mask.get_grayscale() {
             value & 0x30
