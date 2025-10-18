@@ -5,6 +5,7 @@ mod cpu;
 mod ppu;
 mod bus;
 mod nes;
+mod controller;
 
 pub const WIDTH: usize = 256;
 pub const HEIGHT: usize = 240;

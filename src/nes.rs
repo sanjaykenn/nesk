@@ -36,6 +36,11 @@ impl NES {
         }
     }
 
+    pub fn load_buttons(&mut self, controller1: [bool; 8], controller2: [bool; 8]) {
+        self.bus.get_controller_1().load_buttons(controller1);
+        self.bus.get_controller_2().load_buttons(controller2)
+    }
+
     fn get_cpu(&mut self) -> &mut CPU {
         self.bus.get_cpu()
     }

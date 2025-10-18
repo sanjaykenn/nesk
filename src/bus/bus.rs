@@ -1,4 +1,5 @@
 use crate::bus::{mapper, Bus, CPUMemoryMap};
+use crate::controller::Controller;
 use crate::cpu::{CPUMemory, CPU};
 use crate::ppu::PPU;
 
@@ -31,5 +32,13 @@ impl Bus {
 
     pub fn tick_ppu(&'_ mut self) {
         self.cpu_memory.tick_ppu()
+    }
+
+    pub fn get_controller_1(&mut self) -> &mut Controller {
+        self.cpu_memory.bus.get_controller_1()
+    }
+
+    pub fn get_controller_2(&mut self) -> &mut Controller {
+        self.cpu_memory.bus.get_controller_2()
     }
 }
