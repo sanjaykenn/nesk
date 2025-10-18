@@ -45,7 +45,13 @@ impl Mapper for Mapper00 {
     fn cpu_read(&mut self, bus: &mut CPUBus, address: u16) -> u8 {
         match address >> 14 {
             0 => bus.read(self, address),
-            1 => if self.prg_ram.len() > 0 { self.prg_ram[(address & self.prg_ram_mask) as usize] } else { 0 }
+            1 => if address < 0x4020 {
+                bus.read(self, address)
+            } else if self.prg_ram.len() > 0 {
+                self.prg_ram[(address & self.prg_ram_mask) as usize]
+            } else {
+                0
+            }
             _ => self.prg_rom[(address & self.prg_rom_mask) as usize],
         }
     }
@@ -53,7 +59,11 @@ impl Mapper for Mapper00 {
     fn cpu_write(&mut self, bus: &mut CPUBus, address: u16, value: u8) {
         match address >> 14 {
             0 => bus.write(self, address, value),
-            1 => if self.prg_ram.len() > 0 { self.prg_ram[(address & self.prg_ram_mask) as usize] = value }
+            1 => if address < 0x4020 {
+                bus.write(self, address, value)
+            } else if self.prg_ram.len() > 0 {
+                self.prg_ram[(address & self.prg_ram_mask) as usize] = value
+            }
             _ => {},
         }
     }
