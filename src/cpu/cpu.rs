@@ -1,9 +1,8 @@
-use crate::cpu::operations::{Operations, OperationUnit};
-use crate::cpu::{CPUMemory, CPU};
 use crate::cpu::instruction::{AddressingMode, IndexMode, Instruction, TargetRegister};
+use crate::cpu::operations::{OperationUnit, Operations};
 use crate::cpu::registers::Registers;
 use crate::cpu::state::{CPUState, CycleMode};
-use crate::cpu::state::CPUState::Break;
+use crate::cpu::{CPUMemory, CPU};
 
 impl CPU {
     pub fn new(memory: &mut dyn CPUMemory) -> Self {
@@ -49,9 +48,9 @@ impl CPU {
         self.write(memory);
 
         if matches!(state, CPUState::FetchInstruction) {
-            self.state = if self.nmi {
+            self.state = if self.nmi && !matches!(self.registers.instruction.get_addressing_mode(), AddressingMode::Branch) {
                 self.nmi = false;
-                Break(0, true)
+                CPUState::Break(-1, true)
             } else {
                 state
             }
@@ -253,6 +252,7 @@ impl CPU {
                 }
                 CPUState::FetchInstruction
             }
+            CPUState::Break(-1, true) => CPUState::Break(0, true),
             CPUState::Break(cycle, nmi) => match cycle {
                 0 => { self.value = self.registers.get_pch(); CPUState::Break(1, nmi) },
                 1 => { self.value = self.registers.get_pcl(); CPUState::Break(2, nmi) },
@@ -269,11 +269,17 @@ impl CPU {
                 3 => {
                     self.low = if nmi { 0xFB } else { 0xFF };
                     self.high = 0xFF;
-                    self.registers.set_pcl(buffer); CPUState::Break(4, nmi)
+                    if nmi {
+                        self.registers.status.set_interrupt(true)
+                    }
+                    self.registers.set_pcl(buffer);
+                    CPUState::Break(4, nmi)
                 },
                 4 => {
                     self.registers.set_pch(buffer);
-                    self.registers.status.set_interrupt(true);
+                    if !nmi {
+                        self.registers.status.set_interrupt(true);
+                    }
                     CPUState::FetchInstruction
                 },
                 _ => unreachable!("Invalid cycle for break"),

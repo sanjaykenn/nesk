@@ -23,8 +23,8 @@ pub enum CPUState {
 impl CPUState {
     pub fn get_mode(&self) -> CycleMode {
         match self {
-            CPUState::FetchInstruction | CPUState::FetchOperand | CPUState::FetchOperandHigh(_)
-            | CPUState::JumpAbsolute | CPUState::JumpIndirect(0) | CPUState::ReturnSubroutine(3) | CPUState::JumpSubroutine(3) => CycleMode::Fetch,
+            CPUState::FetchInstruction | CPUState::FetchOperand | CPUState::FetchOperandHigh(_) | CPUState::JumpAbsolute
+            | CPUState::JumpIndirect(0) | CPUState::ReturnSubroutine(3) | CPUState::JumpSubroutine(3) | CPUState::Break(-1, true) => CycleMode::Fetch,
 
             CPUState::JumpIndirect(_) | CPUState::IndexedRead(_) | CPUState::Indirect(_, _)
             | CPUState::DummyRead | CPUState::Read | CPUState::Break(3, _) | CPUState::Break(4, _) => CycleMode::Read,
