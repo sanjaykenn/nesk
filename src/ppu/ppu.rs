@@ -245,6 +245,7 @@ impl PPU {
 
     pub fn get_output(&mut self) -> Option<&[[[u8; PIXEL_SIZE]; WIDTH]; HEIGHT]> {
         if self.render {
+            self.render = false;
             Some(&self.pixels)
         } else {
             None
