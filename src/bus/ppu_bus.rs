@@ -20,8 +20,8 @@ impl PPUBus {
     pub fn write(&mut self, address: u16, value: u8) {
         if address >> 11 == 0b100 {
             self.vram[address as usize & 0x7FF] = value;
+        } else {
+            unreachable!("Invalid PPU address map: {:04X}", address)
         }
-
-        unreachable!("Invalid PPU address map: {:04X}", address)
     }
 }
