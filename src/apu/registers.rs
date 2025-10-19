@@ -23,3 +23,14 @@ pub enum DMCRegister {
     Start,
     Length
 }
+
+pub enum APURegister {
+    Pulse1(PulseRegister),
+    Pulse2(PulseRegister),
+    Triangle(TriangleRegister),
+    Noise(NoiseRegister),
+    DMC(DMCRegister),
+    SoundChannelsEnable,
+    FrameCounter,
+    Unused
+}
