@@ -5,13 +5,10 @@ use crate::cpu::state::{CPUState, CycleMode};
 use crate::cpu::{CPUMemory, CPU};
 
 impl CPU {
-    pub fn new(memory: &mut dyn CPUMemory) -> Self {
-        let mut registers = Registers::new();
-        registers.set_pc(memory.read(0xFFFC), memory.read(0xFFFD));
-
+    pub fn new() -> Self {
         Self {
             state: CPUState::FetchInstruction,
-            registers,
+            registers: Registers::new(),
             operation_unit: OperationUnit::new(),
             low: 0,
             high: 0,
@@ -21,6 +18,10 @@ impl CPU {
             output: None,
             nmi: false,
         }
+    }
+    
+    pub fn init_program_counter(&mut self, memory: &mut dyn CPUMemory) {
+        self.registers.set_pc(memory.read(0xFFFC), memory.read(0xFFFD));
     }
 
     pub fn tick(&mut self, memory: &mut dyn CPUMemory) {

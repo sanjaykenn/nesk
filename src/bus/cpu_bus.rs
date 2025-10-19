@@ -1,51 +1,40 @@
 use crate::bus::mapper::Mapper;
 use crate::bus::ppu_bus::PPUBus;
-use crate::bus::PPUMemoryMap;
+use crate::bus::ppu_memory_map::PPUMemoryMap;
 use crate::controller::Controller;
 use crate::ppu::{PPURegister, PPU};
 
-pub struct CPUBus {
-    ram: [u8; 0x800],
-    ppu: PPU,
-    ppu_bus: PPUBus,
-    controller_1: Controller,
-    controller_2: Controller,
+pub struct CPUBus<'a> {
+    ppu: &'a mut PPU,
+    controller_1: &'a mut Controller,
+    controller_2: &'a mut Controller,
+    ram: &'a mut [u8; 0x800],
+    vram: &'a mut [u8; 0x800]
 }
 
-impl CPUBus {
-    pub fn new() -> Self {
+impl<'a> CPUBus<'a> {
+    pub fn new(
+        ppu: &'a mut PPU,
+        controller_1: &'a mut Controller,
+        controller_2: &'a mut Controller,
+        ram: &'a mut [u8; 0x800],
+        vram: &'a mut [u8; 0x800]
+    ) -> Self {
         Self {
-            ram: [0; 0x800],
-            ppu: PPU::new(),
-            ppu_bus: PPUBus::new(),
-            controller_1: Controller::new(),
-            controller_2: Controller::new(),
+            ppu,
+            controller_1,
+            controller_2,
+            ram,
+            vram
         }
     }
 
-    pub fn get_ppu(&mut self) -> &mut PPU {
-        &mut self.ppu
-    }
-
-    pub fn tick_ppu(&mut self, mapper: &mut dyn Mapper) {
-        let mut memory_map = PPUMemoryMap::new(mapper, &mut self.ppu_bus);
-        self.ppu.tick(&mut memory_map);
-    }
-
-    pub fn get_controller_1(&mut self) -> &mut Controller {
-        &mut self.controller_1
-    }
-
-    pub fn get_controller_2(&mut self) -> &mut Controller {
-        &mut self.controller_2
-    }
-
-    pub fn read(&mut self, mapper: &mut dyn Mapper, address: u16) -> u8 {
+    pub fn read<'b>(&mut self, mapper: &'b mut dyn Mapper, address: u16) -> u8 {
         match address >> 13 {
             0 => self.ram[address as usize & 0x7FF],
-            1 => self.ppu.read_register(PPURegister::from(address as u8 & 7), &mut PPUMemoryMap::new(mapper, &mut self.ppu_bus)),
+            1 => self.ppu.read_register(PPURegister::from(address as u8 & 7), &mut PPUMemoryMap::new(mapper, PPUBus::new(self.vram))),
             _ => if address == 0x4014 {
-                self.ppu.read_register(PPURegister::DMA, &mut PPUMemoryMap::new(mapper, &mut self.ppu_bus))
+                self.ppu.read_register(PPURegister::DMA, &mut PPUMemoryMap::new(mapper, PPUBus::new(self.vram)))
             } else if address < 0x4020 {
                 match address {
                     0x4016 => self.controller_1.read(),
@@ -58,12 +47,12 @@ impl CPUBus {
         }
     }
 
-    pub fn write(&mut self, mapper: &mut dyn Mapper, address: u16, value: u8) {
+    pub fn write<'b>(&mut self, mapper: &'b mut dyn Mapper, address: u16, value: u8) {
         match address >> 13 {
             0 => self.ram[address as usize & 0x7FF] = value,
-            1 => self.ppu.write_register(PPURegister::from(address as u8 & 7), &mut PPUMemoryMap::new(mapper, &mut self.ppu_bus), value),
+            1 => self.ppu.write_register(PPURegister::from(address as u8 & 7), &mut PPUMemoryMap::new(mapper, PPUBus::new(self.vram)), value),
             _ => if address == 0x4014 {
-                self.ppu.write_register(PPURegister::DMA, &mut PPUMemoryMap::new(mapper, &mut self.ppu_bus), value)
+                self.ppu.write_register(PPURegister::DMA, &mut PPUMemoryMap::new(mapper, PPUBus::new(self.vram)), value)
             } else if address < 0x4020 {
                 match address {
                     0x4016 => {

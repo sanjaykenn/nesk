@@ -1,7 +1,5 @@
 use crate::bus::Bus;
-use crate::cpu::CPU;
 use crate::{HEIGHT, NES, PIXEL_SIZE, WIDTH};
-use crate::ppu::PPU;
 
 #[derive(Clone, Copy)]
 pub enum DMAState {
@@ -28,12 +26,12 @@ impl DMA {
 }
 
 impl NES {
-    pub fn from_ines(path: &[u8]) -> Self {
-        Self {
-            bus: Bus::from_ines(path),
+    pub fn from_ines(binary: &[u8]) -> Result<Self, String> {
+        Ok(Self {
+            bus: Bus::from_ines(binary)?,
             dma: DMA::new(),
             cycle: 0,
-        }
+        })
     }
 
     pub fn load_buttons(&mut self, controller1: [bool; 8], controller2: [bool; 8]) {
@@ -41,30 +39,14 @@ impl NES {
         self.bus.get_controller_2().load_buttons(controller2)
     }
 
-    fn get_cpu(&mut self) -> &mut CPU {
-        self.bus.get_cpu()
-    }
-
-    fn tick_cpu(&mut self) {
-        self.bus.tick_cpu()
-    }
-
-    fn get_ppu(&mut self) -> &mut PPU {
-        self.bus.get_ppu()
-    }
-
-    fn tick_apu(&mut self) {
-        // TODO
-    }
-
     pub fn tick(&mut self) {
-        if self.get_ppu().pull_nmi() {
-            self.get_cpu().send_nmi()
+        if self.bus.get_ppu().pull_nmi() {
+            self.bus.get_cpu().send_nmi()
         }
 
         // TODO: if apu sends irq, send it to cpu
 
-        if let Some(page) = self.get_ppu().pull_dma() {
+        if let Some(page) = self.bus.get_ppu().pull_dma() {
             self.dma.state = DMAState::WAIT;
             self.dma.address = (page as u16) << 8
         }
@@ -72,8 +54,8 @@ impl NES {
         match self.cycle {
             0 => match self.dma.state {
                 DMAState::INACTIVE => {
-                    self.tick_cpu();
-                    self.tick_apu();
+                    self.bus.tick_cpu();
+                    self.bus.tick_apu();
                 },
                 DMAState::WAIT => {},
                 DMAState::TRANSFER => {
@@ -83,14 +65,14 @@ impl NES {
             },
             12 => match self.dma.state {
                 DMAState::INACTIVE => {
-                    self.tick_cpu();
-                    self.tick_apu()
+                    self.bus.tick_cpu();
+                    self.bus.tick_apu()
                 },
                 DMAState::WAIT => self.dma.state = DMAState::TRANSFER,
                 DMAState::TRANSFER => {
                     let address = self.dma.address as u8;
                     let value = self.dma.value;
-                    self.get_ppu().write_oam(address, value);
+                    self.bus.get_ppu().write_oam(address, value);
 
                     if self.dma.address & 0xFF == 0xFF {
                         self.dma.state = DMAState::INACTIVE
@@ -107,6 +89,6 @@ impl NES {
     }
     
     pub fn get_screen_output(&mut self) -> Option<&[[[u8; PIXEL_SIZE]; WIDTH]; HEIGHT]> {
-        self.get_ppu().get_output()
+        self.bus.get_ppu().get_output()
     }
 }
