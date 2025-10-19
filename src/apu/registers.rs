@@ -10,3 +10,9 @@ pub enum TriangleRegister {
 	Low,
 	High
 }
+
+pub enum NoiseRegister {
+    Volume,
+    Low,
+    High
+}
