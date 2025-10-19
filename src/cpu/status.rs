@@ -9,7 +9,7 @@ impl StatusRegister {
         self.0
     }
 
-    pub fn get_b_clear(&self) -> u8 {
+    pub fn get_with_b_clear(&self) -> u8 {
         self.0 & 0b11101111
     }
 

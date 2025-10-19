@@ -1,7 +1,7 @@
 use crate::cpu::instruction::{AddressingMode, IndexMode, Instruction, TargetRegister};
 use crate::cpu::operations::{OperationUnit, Operations};
 use crate::cpu::registers::Registers;
-use crate::cpu::state::{CPUState, CycleMode};
+use crate::cpu::state::{BreakSignal, CPUState, CycleMode};
 use crate::cpu::{CPUMemory, CPU};
 
 impl CPU {
@@ -50,11 +50,17 @@ impl CPU {
         self.write(memory);
 
         if matches!(state, CPUState::FetchInstruction) {
-            self.state = if self.nmi && !matches!(self.registers.instruction.get_addressing_mode(), AddressingMode::Branch) {
-                self.nmi = false;
-                CPUState::Break(-1, true)
-            } else {
-                state
+            self.state = match self.registers.instruction.get_addressing_mode() {
+                AddressingMode::Branch => state,
+                _ => if self.nmi {
+                    self.nmi = false;
+                    CPUState::Break(-1, BreakSignal::NMI)
+                } else if self.irq && !self.registers.status.get_interrupt() {
+                    self.irq = false;
+                    CPUState::Break(-1, BreakSignal::IRQ)
+                } else {
+                    state
+                }
             }
         } else {
             self.state = state;
@@ -64,7 +70,7 @@ impl CPU {
     pub fn send_nmi(&mut self) {
         self.nmi = true;
     }
-    
+
     pub fn send_irq(&mut self) {
         self.irq = true;
     }
@@ -258,34 +264,43 @@ impl CPU {
                 }
                 CPUState::FetchInstruction
             }
-            CPUState::Break(-1, true) => CPUState::Break(0, true),
-            CPUState::Break(cycle, nmi) => match cycle {
-                0 => { self.value = self.registers.get_pch(); CPUState::Break(1, nmi) },
-                1 => { self.value = self.registers.get_pcl(); CPUState::Break(2, nmi) },
+            CPUState::Break(-1, signal) => CPUState::Break(0, signal),
+            CPUState::Break(cycle, signal) => match cycle {
+                0 => { self.value = self.registers.get_pch(); CPUState::Break(1, signal) },
+                1 => { self.value = self.registers.get_pcl(); CPUState::Break(2, signal) },
                 2 => {
-                    self.low = if nmi { 0xFA } else { 0xFE };
-                    self.high = 0xFF;
-                    self.value = if nmi {
-                        self.registers.status.get_b_clear()
-                    } else {
-                        self.registers.status.get()
+                    self.low = match signal {
+                        BreakSignal::NMI => 0xFA,
+                        _ => 0xFE,
                     };
-                    CPUState::Break(3, nmi)
+                    self.high = 0xFF;
+                    self.value = match signal {
+                        BreakSignal::None => self.registers.status.get(),
+                        _ => self.registers.status.get_with_b_clear()
+                    };
+                    CPUState::Break(3, signal)
                 },
                 3 => {
-                    self.low = if nmi { 0xFB } else { 0xFF };
+                    self.low = match signal {
+                        BreakSignal::NMI => 0xFB,
+                        _ => 0xFF,
+                    };
                     self.high = 0xFF;
-                    if nmi {
+
+                    if matches!(signal, BreakSignal::NMI | BreakSignal::IRQ) {
                         self.registers.status.set_interrupt(true)
                     }
+
                     self.registers.set_pcl(buffer);
-                    CPUState::Break(4, nmi)
+                    CPUState::Break(4, signal)
                 },
                 4 => {
                     self.registers.set_pch(buffer);
-                    if !nmi {
-                        self.registers.status.set_interrupt(true);
+
+                    if matches!(signal, BreakSignal::None) {
+                        self.registers.status.set_interrupt(true)
                     }
+
                     CPUState::FetchInstruction
                 },
                 _ => unreachable!("Invalid cycle for break"),
@@ -327,7 +342,7 @@ impl CPU {
 
     fn implied_instructions(&mut self) -> CPUState {
         match self.registers.instruction.get_opcode() {
-            0x00 => { self.registers.increment_pc(); return CPUState::Break(0, false) },
+            0x00 => { self.registers.increment_pc(); return CPUState::Break(0, BreakSignal::None) },
             0x20 => return CPUState::JumpSubroutine(0),
             0x40 => return CPUState::ReturnInterrupt(0),
             0x60 => return CPUState::ReturnSubroutine(0),
