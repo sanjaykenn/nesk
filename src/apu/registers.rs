@@ -16,3 +16,10 @@ pub enum NoiseRegister {
     Low,
     High
 }
+
+pub enum DMCRegister {
+    Frequency,
+    Raw,
+    Start,
+    Length
+}
