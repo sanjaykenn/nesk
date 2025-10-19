@@ -4,3 +4,9 @@ pub enum PulseRegister {
     Low,
     High
 }
+
+pub enum TriangleRegister {
+	Linear,
+	Low,
+	High
+}
