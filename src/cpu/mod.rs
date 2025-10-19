@@ -21,6 +21,7 @@ pub struct CPU {
     branch: bool,
     output: Option<TargetRegister>,
     nmi: bool,
+    irq: bool,
 }
 
 pub trait CPUMemory {

@@ -17,6 +17,7 @@ impl CPU {
             branch: false,
             output: None,
             nmi: false,
+            irq: false,
         }
     }
     
@@ -62,6 +63,10 @@ impl CPU {
 
     pub fn send_nmi(&mut self) {
         self.nmi = true;
+    }
+    
+    pub fn send_irq(&mut self) {
+        self.irq = true;
     }
 
     fn read(&mut self, memory: &mut dyn CPUMemory) -> u8 {

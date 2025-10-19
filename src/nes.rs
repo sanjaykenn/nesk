@@ -44,7 +44,9 @@ impl NES {
             self.bus.get_cpu().send_nmi()
         }
 
-        // TODO: if apu sends irq, send it to cpu
+        if self.bus.get_apu().get_irq() {
+            self.bus.get_cpu().send_irq()
+        }
 
         if let Some(page) = self.bus.get_ppu().pull_dma() {
             self.dma.state = DMAState::WAIT;
@@ -90,5 +92,9 @@ impl NES {
     
     pub fn get_screen_output(&mut self) -> Option<&[[[u8; PIXEL_SIZE]; WIDTH]; HEIGHT]> {
         self.bus.get_ppu().get_output()
+    }
+
+    pub fn get_speaker_output(&mut self) -> Vec<f64> {
+        self.bus.get_apu().get_output()
     }
 }

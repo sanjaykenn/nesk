@@ -95,8 +95,12 @@ impl Bus {
         ))
     }
 
-    pub fn tick_apu(&mut self) {
+    pub fn get_apu(&mut self) -> &mut APU {
+        &mut self.apu
+    }
 
+    pub fn tick_apu(&mut self) {
+        self.apu.tick()
     }
 
     pub fn get_controller_1(&mut self) -> &mut Controller {
