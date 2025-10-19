@@ -1,3 +1,4 @@
+use crate::apu::APU;
 use crate::bus::cpu_bus::CPUBus;
 use crate::bus::cpu_memory_map::CPUMemoryMap;
 use crate::bus::mapper;
@@ -12,6 +13,7 @@ pub struct Bus {
     mapper: Box<dyn Mapper>,
     cpu: CPU,
     ppu: PPU,
+    apu: APU,
     controller_1: Controller,
     controller_2: Controller,
     ram: [u8; 0x800],
@@ -23,6 +25,7 @@ impl Bus {
         let mut result = Self {
             mapper: mapper::from_ines(binary)?,
             cpu: CPU::new(),
+            apu: APU::new(),
             ppu: PPU::new(),
             controller_1: Controller::new(),
             controller_2: Controller::new(),
@@ -40,6 +43,7 @@ impl Bus {
             self.mapper.as_mut(),
             CPUBus::new(
                 &mut self.ppu,
+                &mut self.apu,
                 &mut self.controller_1,
                 &mut self.controller_2,
                 &mut self.ram,
@@ -57,6 +61,7 @@ impl Bus {
             self.mapper.as_mut(),
             CPUBus::new(
                 &mut self.ppu,
+                &mut self.apu,
                 &mut self.controller_1,
                 &mut self.controller_2,
                 &mut self.ram,
@@ -70,6 +75,7 @@ impl Bus {
             self.mapper.as_mut(),
             CPUBus::new(
                 &mut self.ppu,
+                &mut self.apu,
                 &mut self.controller_1,
                 &mut self.controller_2,
                 &mut self.ram,
