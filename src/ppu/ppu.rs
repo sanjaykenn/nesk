@@ -55,14 +55,12 @@ impl PPU {
                 self.foreground.get_sprites().get_oam_primary().get_byte(self.register.oam_address as usize)
             },
             PPURegister::VRAMData => {
-                let data;
-                if self.register.vram_address.get() >= 0x3F00 {
-                    self.ppu_data_buffer = self.palette_ram[Self::get_palette_index(self.register.vram_address.get())];
-                    data = self.ppu_data_buffer
+                let data = if self.register.vram_address.get() >= 0x3F00 {
+                    self.palette_ram[Self::get_palette_index(self.register.vram_address.get())]
                 } else {
-                    data = self.ppu_data_buffer;
-                    self.ppu_data_buffer = memory.read(self.register.vram_address.get())
-                }
+                    self.ppu_data_buffer
+                };
+                self.ppu_data_buffer = memory.read(self.register.vram_address.get());
 
                 self.register.vram_address.set(self.register.vram_address.get() +
                     if self.register.control.get_vram_increment() {
