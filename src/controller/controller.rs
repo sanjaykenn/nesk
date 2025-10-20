@@ -7,15 +7,17 @@ impl Controller {
     
     pub fn load_buttons(&mut self, buttons: [bool; 8]) {
         self.buttons = buttons;
-        self.load_value();
+        self.load_value()
     }
 
     fn load_value(&mut self) {
-        self.value = self.buttons.iter()
-            .enumerate()
-            .fold(0, |acc, (i, &pressed)| {
-                acc | ((pressed as u8) << i)
-            });
+        if self.strobe & 1 != 0 {
+            self.value = self.buttons.iter()
+                .enumerate()
+                .fold(0, |acc, (i, &pressed)| {
+                    acc | ((pressed as u8) << i)
+                });
+        }
     }
 
     pub fn read(&mut self) -> u8 {
@@ -27,11 +29,7 @@ impl Controller {
     }
 
     pub fn write(&mut self, value: u8) {
-        let prev = self.strobe & 1;
         self.strobe = value;
-        let curr = self.strobe & 1;
-        if prev == 0 && curr == 1 {
-            self.load_value();
-        }
+        self.load_value()
     }
 }
