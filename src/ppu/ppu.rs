@@ -153,12 +153,11 @@ impl PPU {
             } else {
                 if self.foreground.sprite_zero_active() && self.foreground.show_sprite_zero() {
                     if self.register.mask.get_show_background() && self.register.mask.get_show_sprites() {
-                        if !self.register.mask.get_show_background_leftmost_pixels() && !self.register.mask.get_show_sprites_leftmost_pixels() {
-                            if self.cycle >= 9 && self.cycle < 258 {
-                                self.register.status.set_sprite_0_hit(true)
-                            }
-                        } else if self.cycle >= 1 && self.cycle < 258 {
-                            self.register.status.set_sprite_0_hit(true)
+                        let in_left_clip = self.cycle <= 8;
+                        let bg_visible = !in_left_clip || self.register.mask.get_show_background_leftmost_pixels();
+                        let fg_visible = !in_left_clip || self.register.mask.get_show_sprites_leftmost_pixels();
+                        if bg_visible && fg_visible && self.cycle <= 255 {
+                            self.register.status.set_sprite_0_hit(true);
                         }
                     }
                 }
