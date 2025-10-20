@@ -89,7 +89,10 @@ impl PPU {
             },
             PPURegister::Mask => self.register.mask.set(value),
             PPURegister::OAMAddress => self.register.oam_address = value,
-            PPURegister::OAMData => self.foreground.get_sprites().get_oam_primary().set_byte(self.register.oam_address as usize, value),
+            PPURegister::OAMData => {
+                self.foreground.get_sprites().get_oam_primary().set_byte(self.register.oam_address as usize, value);
+                self.register.oam_address = self.register.oam_address.wrapping_add(1);
+            },
             PPURegister::Scroll =>
                 if self.address_latch == false {
                     self.register.fine_x = value & 0x07;
@@ -134,7 +137,7 @@ impl PPU {
     }
 
     pub fn write_oam(&mut self, address: u8, value: u8) {
-        self.foreground.get_sprites().get_oam_primary().set_byte(address as usize, value)
+        self.foreground.get_sprites().get_oam_primary().set_byte(address.wrapping_add(self.register.oam_address) as usize, value)
     }
 
     fn load_pixel(&mut self, bg_pattern: u8, bg_palette: u8, fg_pattern: u8, fg_palette: u8, fg_priority: bool) -> (u8, u8) {
