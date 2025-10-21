@@ -23,7 +23,8 @@ pub fn from_ines(binary: &[u8]) -> Result<Box<dyn Mapper>, String> {
     }
 
     let prg_size = header[4] as usize * 0x4000;
-    let chr_size = if header[5] == 0 { 0x2000 } else { header[5] as usize * 0x2000 };
+    let chr_size = header[5] as usize * 0x2000;
+    let chr_ram_size = if header[5] == 0 { 0x2000 } else { 0 };
 
     if binary.len() < offset + prg_size + chr_size {
         return Err("Invalid binary size".to_string())
@@ -36,5 +37,5 @@ pub fn from_ines(binary: &[u8]) -> Result<Box<dyn Mapper>, String> {
 
     let horizontal_mirror = header[6] & 1 == 0;
 
-    Ok(Box::new(Mapper00::new(horizontal_mirror, prg.into_boxed_slice(), chr.into_boxed_slice(), 0)?))
+    Ok(Box::new(Mapper00::new(horizontal_mirror, prg.into_boxed_slice(), chr.into_boxed_slice(), 0, chr_ram_size)?))
 }

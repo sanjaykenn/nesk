@@ -5,23 +5,33 @@ use crate::bus::ppu_bus::PPUBus;
 pub struct Mapper00 {
     horizontal_mirror: bool,
     prg_rom: Box<[u8]>,
-    chr_rom: Box<[u8]>,
+    chr_ram: Box<[u8]>,
     prg_ram: Box<[u8]>,
+    chr_ram_writable: bool,
     prg_rom_mask: u16,
     prg_ram_mask: u16,
 }
 
 impl Mapper00 {
-    pub fn new(horizontal_mirror: bool, prg_rom: Box<[u8]>, chr_rom: Box<[u8]>, prg_ram_size: usize) -> Result<Self, String> {
+    pub fn new(horizontal_mirror: bool, prg_rom: Box<[u8]>, chr_rom: Box<[u8]>, prg_ram_size: usize, chr_ram_size: usize) -> Result<Self, String> {
         let prg_rom_mask = match prg_rom.len() {
             0x4000 => 0x3FFF,
             0x8000 => 0x7FFF,
             _ => return Err("Invalid PRG ROM size".to_string()),
         };
         
-        if chr_rom.len() != 0x2000 {
-            return Err("Invalid CHR ROM size".to_string());
-        }
+        let chr_ram = match chr_rom.len() {
+            0 => match chr_ram_size {
+                0 => return Err("Mapper 00 must have either chr rom or chr ram".to_string()),
+                0x2000 => vec![0; 0x2000].into_boxed_slice(),
+                _ => return Err("Invalid CHR RAM size".to_string()),
+            },
+            0x2000 => match chr_ram_size {
+                0 => chr_rom,
+                _ => return Err("Mapper 00 cannot have chr rom and chr ram".to_string()),
+            },
+            _ => return Err("Invalid CHR ROM size".to_string()),
+        };
 
         let prg_ram_mask = match prg_ram_size {
             0 => 0,
@@ -33,8 +43,9 @@ impl Mapper00 {
         Ok(Self {
             horizontal_mirror,
             prg_rom,
-            chr_rom,
+            chr_ram,
             prg_ram: vec![0; prg_ram_size].into_boxed_slice(),
+            chr_ram_writable: chr_ram_size > 0,
             prg_rom_mask,
             prg_ram_mask,
         })
@@ -63,8 +74,6 @@ impl Mapper for Mapper00 {
             if self.prg_ram.len() > 0 {
                 self.prg_ram[(address & self.prg_ram_mask) as usize] = value
             }
-        } else {
-            self.prg_rom[(address & self.prg_rom_mask) as usize] = value
         }
     }
 
@@ -72,13 +81,15 @@ impl Mapper for Mapper00 {
         if address >= 0x2000 {
             bus.read(utils::mirror_namespace(address, self.horizontal_mirror, !self.horizontal_mirror))
         } else {
-            self.chr_rom[address as usize]
+            self.chr_ram[address as usize]
         }
     }
 
     fn ppu_write(&mut self, bus: &mut PPUBus, address: u16, value: u8) {
         if address >= 0x2000 {
             bus.write(utils::mirror_namespace(address, self.horizontal_mirror, !self.horizontal_mirror), value)
+        } else if self.chr_ram_writable {
+            self.chr_ram[address as usize] = value
         }
     }
 }
