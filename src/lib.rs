@@ -14,6 +14,8 @@ pub const PIXEL_SIZE: usize = 3;
 
 pub const TICK_DURATION_NS: f64 = 1100000.0 / 23625.0;
 
+pub const AVG_FPS: f64 = 60.0988;
+
 pub struct NES {
     bus: Bus,
     dma: DMA,
