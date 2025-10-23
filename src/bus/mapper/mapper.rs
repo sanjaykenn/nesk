@@ -37,5 +37,11 @@ pub fn from_ines(binary: &[u8]) -> Result<Box<dyn Mapper>, String> {
 
     let horizontal_mirror = header[6] & 1 == 0;
 
+    let mapper = header[6] >> 4 | header[7] & 0xF0;
+
+    if mapper != 0 {
+        return Err("Mapper not supported".to_string())
+    }
+
     Ok(Box::new(Mapper00::new(horizontal_mirror, prg.into_boxed_slice(), chr.into_boxed_slice(), 0, chr_ram_size)?))
 }
