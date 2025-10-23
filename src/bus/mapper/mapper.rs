@@ -22,6 +22,11 @@ pub fn from_ines(binary: &[u8]) -> Result<Box<dyn Mapper>, String> {
         return Err("Invalid binary size".to_string())
     }
 
+    let mapper = (header[6] >> 4) | (header[7] & 0xF0);
+    if mapper != 0 {
+        return Err("Mapper not supported".to_string())
+    }
+
     let prg_size = header[4] as usize * 0x4000;
     let chr_size = header[5] as usize * 0x2000;
     let chr_ram_size = if header[5] == 0 { 0x2000 } else { 0 };
@@ -30,18 +35,12 @@ pub fn from_ines(binary: &[u8]) -> Result<Box<dyn Mapper>, String> {
         return Err("Invalid binary size".to_string())
     }
 
-    let prg = binary[offset..(offset + prg_size)].to_vec();
+    let prg = binary[offset..(offset + prg_size)].into();
     offset += prg_size;
 
-    let chr = binary[offset..(offset + chr_size)].to_vec();
+    let chr = binary[offset..(offset + chr_size)].into();
 
     let horizontal_mirror = header[6] & 1 == 0;
 
-    let mapper = header[6] >> 4 | header[7] & 0xF0;
-
-    if mapper != 0 {
-        return Err("Mapper not supported".to_string())
-    }
-
-    Ok(Box::new(Mapper00::new(horizontal_mirror, prg.into_boxed_slice(), chr.into_boxed_slice(), 0, chr_ram_size)?))
+    Ok(Box::new(Mapper00::new(horizontal_mirror, prg, chr, 0, chr_ram_size)?))
 }
